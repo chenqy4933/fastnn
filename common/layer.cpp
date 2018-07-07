@@ -16,11 +16,10 @@
 
 #include <string.h>
 
-namespace ncnn {
+namespace fastnn {
 
 Layer::Layer()
 {
-    one_blob_only = false;
     support_inplace = false;
 }
 
@@ -38,85 +37,14 @@ int Layer::load_model(const ModelBin& /*mb*/)
     return 0;
 }
 
-int Layer::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
+int Layer::forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const
 {
-    if (!support_inplace)
-        return -1;
-
-    top_blobs = bottom_blobs;
-    for (int i = 0; i < (int)top_blobs.size(); i++)
-    {
-        top_blobs[i] = bottom_blobs[i].clone();
-        if (top_blobs[i].empty())
-            return -100;
-    }
-
-    return forward_inplace(top_blobs);
+    return 0;
 }
 
-int Layer::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Layer::infershape(const std::vector<Blob>& bottom_blobs)
 {
-    if (!support_inplace)
-        return -1;
-
-    top_blob = bottom_blob.clone();
-    if (top_blob.empty())
-        return -100;
-
-    return forward_inplace(top_blob);
+    return 0;
 }
 
-int Layer::forward_inplace(std::vector<Mat>& /*bottom_top_blobs*/) const
-{
-    return -1;
-}
-
-int Layer::forward_inplace(Mat& /*bottom_top_blob*/) const
-{
-    return -1;
-}
-
-#include "layer_declaration.h"
-
-static const layer_registry_entry layer_registry[] =
-{
-#include "layer_registry.h"
-};
-
-static const int layer_registry_entry_count = sizeof(layer_registry) / sizeof(layer_registry_entry);
-
-#if NCNN_STRING
-int layer_to_index(const char* type)
-{
-    for (int i=0; i<layer_registry_entry_count; i++)
-    {
-        if (strcmp(type, layer_registry[i].name) == 0)
-            return i;
-    }
-
-    return -1;
-}
-
-Layer* create_layer(const char* type)
-{
-    int index = layer_to_index(type);
-    if (index == -1)
-        return 0;
-
-    return create_layer(index);
-}
-#endif // NCNN_STRING
-
-Layer* create_layer(int index)
-{
-    if (index < 0 || index >= layer_registry_entry_count)
-        return 0;
-
-    layer_creator_func layer_creator = layer_registry[index].creator;
-    if (!layer_creator)
-        return 0;
-
-    return layer_creator();
-}
-
-} // namespace ncnn
+} // namespace fastnn

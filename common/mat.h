@@ -12,17 +12,17 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef NCNN_MAT_H
-#define NCNN_MAT_H
+#ifndef FAST_MAT_H
+#define FAST_MAT_H
 
 #include <stdlib.h>
 #include <string.h>
-#if __ARM_NEON
 #include <arm_neon.h>
-#endif
-#include "platform.h"
 
-namespace ncnn {
+
+namespace fastnn {
+
+#define ROUND4(x) (((x+3)>>2)<<2)
 
 // the three dimension matrix
 class Mat
@@ -50,7 +50,8 @@ public:
     Mat& operator=(const Mat& m);
     // set all
     void fill(float v);
-    template <typename T> void fill(T v);
+    template <typename T>
+    void fill(T v);
     // deep copy
     Mat clone() const;
     // reshape vec
@@ -89,42 +90,6 @@ public:
     float& operator[](int i);
     const float& operator[](int i) const;
 
-#if NCNN_PIXEL
-    enum
-    {
-        PIXEL_CONVERT_SHIFT = 16,
-        PIXEL_FORMAT_MASK = 0x0000ffff,
-        PIXEL_CONVERT_MASK = 0xffff0000,
-
-        PIXEL_RGB       = 1,
-        PIXEL_BGR       = (1 << 1),
-        PIXEL_GRAY      = (1 << 2),
-        PIXEL_RGBA      = (1 << 3),
-
-        PIXEL_RGB2BGR   = PIXEL_RGB | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
-        PIXEL_RGB2GRAY  = PIXEL_RGB | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
-
-        PIXEL_BGR2RGB   = PIXEL_BGR | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
-        PIXEL_BGR2GRAY  = PIXEL_BGR | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
-
-        PIXEL_GRAY2RGB  = PIXEL_GRAY | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
-        PIXEL_GRAY2BGR  = PIXEL_GRAY | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
-
-        PIXEL_RGBA2RGB  = PIXEL_RGBA | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
-        PIXEL_RGBA2BGR  = PIXEL_RGBA | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
-        PIXEL_RGBA2GRAY = PIXEL_RGBA | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
-    };
-    // convenient construct from pixel data
-    static Mat from_pixels(const unsigned char* pixels, int type, int w, int h);
-    // convenient construct from pixel data and resize to specific size
-    static Mat from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height);
-
-    // convenient export to pixel data
-    void to_pixels(unsigned char* pixels, int type) const;
-    // convenient export to pixel data and resize to specific size
-    void to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height) const;
-#endif // NCNN_PIXEL
-
     // substract channel-wise mean values, then multiply by normalize values, pass 0 to skip
     void substract_mean_normalize(const float* mean_vals, const float* norm_vals);
 
@@ -152,26 +117,10 @@ public:
     int h;
     int c;
 
-    size_t cstep;
+    int real_c;
 };
 
-// misc function
-#if NCNN_PIXEL
-// image pixel bilinear resize
-void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
-void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
-void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
-#endif // NCNN_PIXEL
 
-// mat process
-enum
-{
-    BORDER_CONSTANT = 0,
-    BORDER_REPLICATE = 1,
-};
-void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v);
-void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right);
-void resize_bilinear(const Mat& src, Mat& dst, int w, int h);
 
 // the alignment of all the allocated buffers
 #define MALLOC_ALIGN    16
@@ -195,7 +144,7 @@ static inline size_t alignSize(size_t sz, int n)
 
 static inline void* fastMalloc(size_t size)
 {
-    unsigned char* udata = (unsigned char*)malloc(size + sizeof(void*) + MALLOC_ALIGN);
+    unsigned char* udata = (unsigned char*)malloc(size + sizeof(void*) + 2*MALLOC_ALIGN);
     if (!udata)
         return 0;
     unsigned char** adata = alignPtr((unsigned char**)udata + 1, MALLOC_ALIGN);
@@ -239,7 +188,7 @@ static inline void NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += d
 #endif
 
 inline Mat::Mat()
-    : data(0), refcount(0), elemsize(0), dims(0), w(0), h(0), c(0), cstep(0)
+    : data(0), refcount(0), elemsize(0), dims(0), w(0), h(0), c(0), real_c(0)
 {
 }
 
@@ -270,8 +219,7 @@ inline Mat::Mat(const Mat& m)
     w = m.w;
     h = m.h;
     c = m.c;
-
-    cstep = m.cstep;
+    real_c=m.real_c;
 }
 
 inline Mat::Mat(int _w, void* _data, size_t _elemsize)
@@ -280,8 +228,7 @@ inline Mat::Mat(int _w, void* _data, size_t _elemsize)
     w = _w;
     h = 1;
     c = 1;
-
-    cstep = w;
+    real_c=1;
 }
 
 inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize)
@@ -290,8 +237,7 @@ inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize)
     w = _w;
     h = _h;
     c = 1;
-
-    cstep = w * h;
+    real_c=1;
 }
 
 inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize)
@@ -299,9 +245,8 @@ inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize)
 {
     w = _w;
     h = _h;
-    c = _c;
-
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    c = ROUND4(_c);
+    real_c=_c;
 }
 
 inline Mat::~Mat()
@@ -328,7 +273,7 @@ inline Mat& Mat::operator=(const Mat& m)
     h = m.h;
     c = m.c;
 
-    cstep = m.cstep;
+    real_c=m.real_c;
 
     return *this;
 }
@@ -338,14 +283,9 @@ inline void Mat::fill(float _v)
     int size = total();
     float* ptr = (float*)data;
 
-#if __ARM_NEON
     int nn = size >> 2;
-    int remain = size - (nn << 2);
-#else
-    int remain = size;
-#endif // __ARM_NEON
 
-#if __ARM_NEON
+
     float32x4_t _c = vdupq_n_f32(_v);
 #if __aarch64__
     if (nn > 0)
@@ -380,11 +320,7 @@ inline void Mat::fill(float _v)
     );
     }
 #endif // __aarch64__
-#endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
-        *ptr++ = _v;
-    }
+
 }
 
 template <typename T>
@@ -419,114 +355,6 @@ inline Mat Mat::clone() const
     return m;
 }
 
-inline Mat Mat::reshape(int _w) const
-{
-    if (w * h * c != _w)
-        return Mat();
-
-    if (dims == 3 && cstep != (size_t)w * h)
-    {
-        Mat m;
-        m.create(_w, elemsize);
-
-        // flatten
-        for (int i=0; i<c; i++)
-        {
-            const void* ptr = (unsigned char*)data + i * cstep * elemsize;
-            void* mptr = (unsigned char*)m.data + i * w * h * elemsize;
-            memcpy(mptr, ptr, w * h * elemsize);
-        }
-
-        return m;
-    }
-
-    Mat m = *this;
-
-    m.dims = 1;
-    m.w = _w;
-    m.h = 1;
-    m.c = 1;
-
-    m.cstep = _w;
-
-    return m;
-}
-
-inline Mat Mat::reshape(int _w, int _h) const
-{
-    if (w * h * c != _w * _h)
-        return Mat();
-
-    if (dims == 3 && cstep != (size_t)w * h)
-    {
-        Mat m;
-        m.create(_w, _h, elemsize);
-
-        // flatten
-        for (int i=0; i<c; i++)
-        {
-            const void* ptr = (unsigned char*)data + i * cstep * elemsize;
-            void* mptr = (unsigned char*)m.data + i * w * h * elemsize;
-            memcpy(mptr, ptr, w * h * elemsize);
-        }
-
-        return m;
-    }
-
-    Mat m = *this;
-
-    m.dims = 2;
-    m.w = _w;
-    m.h = _h;
-    m.c = 1;
-
-    m.cstep = _w * _h;
-
-    return m;
-}
-
-inline Mat Mat::reshape(int _w, int _h, int _c) const
-{
-    if (w * h * c != _w * _h * _c)
-        return Mat();
-
-    if (dims < 3)
-    {
-        if ((size_t)_w * _h != alignSize(_w * _h * elemsize, 16) / elemsize)
-        {
-            Mat m;
-            m.create(_w, _h, _c, elemsize);
-
-            // align channel
-            for (int i=0; i<_c; i++)
-            {
-                const void* ptr = (unsigned char*)data + i * _w * _h * elemsize;
-                void* mptr = (unsigned char*)m.data + i * m.cstep * m.elemsize;
-                memcpy(mptr, ptr, _w * _h * elemsize);
-            }
-
-            return m;
-        }
-    }
-    else if (c != _c)
-    {
-        // flatten and then align
-        Mat tmp = reshape(_w * _h * _c);
-        return tmp.reshape(_w, _h, _c);
-    }
-
-    Mat m = *this;
-
-    m.dims = 3;
-    m.w = _w;
-    m.h = _h;
-    m.c = _c;
-
-    m.cstep = alignSize(_w * _h * elemsize, 16) / elemsize;
-
-    return m;
-}
-
 inline void Mat::create(int _w, size_t _elemsize)
 {
     if (dims == 1 && w == _w && elemsize == _elemsize)
@@ -541,7 +369,7 @@ inline void Mat::create(int _w, size_t _elemsize)
     h = 1;
     c = 1;
 
-    cstep = w;
+    real_c=1;
 
     if (total() > 0)
     {
@@ -566,7 +394,7 @@ inline void Mat::create(int _w, int _h, size_t _elemsize)
     h = _h;
     c = 1;
 
-    cstep = w * h;
+    real_c=1;
 
     if (total() > 0)
     {
@@ -589,9 +417,9 @@ inline void Mat::create(int _w, int _h, int _c, size_t _elemsize)
     dims = 3;
     w = _w;
     h = _h;
-    c = _c;
+    c = ROUND4(_c);
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    real_c=_c;
 
     if (total() > 0)
     {
@@ -622,8 +450,6 @@ inline void Mat::release()
     h = 0;
     c = 0;
 
-    cstep = 0;
-
     refcount = 0;
 }
 
@@ -634,39 +460,30 @@ inline bool Mat::empty() const
 
 inline size_t Mat::total() const
 {
-    return cstep * c;
+    return w*h*c;
 }
 
-inline Mat Mat::channel(int c)
-{
-    return Mat(w, h, (unsigned char*)data + cstep * c * elemsize, elemsize);
-}
-
-inline const Mat Mat::channel(int c) const
-{
-    return Mat(w, h, (unsigned char*)data + cstep * c * elemsize, elemsize);
-}
 
 inline float* Mat::row(int y)
 {
-    return (float*)data + w * y;
+    return (float*)data + w*c* y;
 }
 
 inline const float* Mat::row(int y) const
 {
-    return (const float*)data + w * y;
+    return (const float*)data + w *c* y;
 }
 
 template <typename T>
 inline T* Mat::row(int y)
 {
-    return (T*)data + w * y;
+    return (T*)data + w*c * y;
 }
 
 template <typename T>
 inline const T* Mat::row(int y) const
 {
-    return (const T*)data + w * y;
+    return (const T*)data + w*c * y;
 }
 
 template <typename T>
@@ -691,6 +508,6 @@ inline const float& Mat::operator[](int i) const
     return ((const float*)data)[i];
 }
 
-} // namespace ncnn
+} // namespace fastnn
 
-#endif // NCNN_MAT_H
+#endif // FAST_MAT_H

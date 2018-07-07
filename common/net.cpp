@@ -13,22 +13,15 @@
 // specific language governing permissions and limitations under the License.
 
 #include "net.h"
-#include "layer_type.h"
+#include "layer_register.h"
 #include "modelbin.h"
 #include "paramdict.h"
 
 #include <stdio.h>
 #include <string.h>
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif // _OPENMP
 
-#if NCNN_BENCHMARK
-#include "benchmark.h"
-#endif // NCNN_BENCHMARK
-
-namespace ncnn {
+namespace fastnn {
 
 Net::Net()
 {
@@ -39,63 +32,6 @@ Net::~Net()
     clear();
 }
 
-#if NCNN_STRING
-int Net::register_custom_layer(const char* type, layer_creator_func creator)
-{
-    int typeindex = layer_to_index(type);
-    if (typeindex != -1)
-    {
-        fprintf(stderr, "can not register build-in layer type %s\n", type);
-        return -1;
-    }
-
-    int custom_index = custom_layer_to_index(type);
-    if (custom_index == -1)
-    {
-        struct layer_registry_entry entry = { type, creator };
-        custom_layer_registry.push_back(entry);
-    }
-    else
-    {
-        fprintf(stderr, "overwrite existing custom layer type %s\n", type);
-        custom_layer_registry[custom_index].name = type;
-        custom_layer_registry[custom_index].creator = creator;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-
-int Net::register_custom_layer(int index, layer_creator_func creator)
-{
-    int custom_index = index & ~LayerType::CustomBit;
-    if (index == custom_index)
-    {
-        fprintf(stderr, "can not register build-in layer index %d\n", custom_index);
-        return -1;
-    }
-
-    if ((int)custom_layer_registry.size() <= custom_index)
-    {
-#if NCNN_STRING
-        struct layer_registry_entry dummy = { "", 0 };
-#else
-        struct layer_registry_entry dummy = { 0 };
-#endif // NCNN_STRING
-        custom_layer_registry.resize(custom_index + 1, dummy);
-    }
-
-    if (custom_layer_registry[custom_index].creator)
-    {
-        fprintf(stderr, "overwrite existing custom layer index %d\n", custom_index);
-    }
-
-    custom_layer_registry[custom_index].creator = creator;
-    return 0;
-}
-
-#if NCNN_STDIO
-#if NCNN_STRING
 int Net::load_param(FILE* fp)
 {
     int magic = 0;
@@ -111,8 +47,8 @@ int Net::load_param(FILE* fp)
     int blob_count = 0;
     fscanf(fp, "%d %d", &layer_count, &blob_count);
 
-    layers.resize(layer_count);
-    blobs.resize(blob_count);
+    allLayer.resize(layer_count);
+    allBlob.resize(blob_count);
 
     ParamDict pd;
 
@@ -131,15 +67,10 @@ int Net::load_param(FILE* fp)
         {
             continue;
         }
-
         Layer* layer = create_layer(layer_type);
         if (!layer)
         {
-            layer = create_custom_layer(layer_type);
-        }
-        if (!layer)
-        {
-            fprintf(stderr, "layer %s not exists or registered\n", layer_type);
+            printf("Create layer %s failed!!!\n",layer_type);
             clear();
             return -1;
         }
@@ -238,7 +169,6 @@ int Net::load_param(const char* protopath)
 
     return ret;
 }
-#endif // NCNN_STRING
 
 int Net::load_param_bin(FILE* fp)
 {
@@ -398,7 +328,6 @@ int Net::load_model(const char* modelpath)
 
     return ret;
 }
-#endif // NCNN_STDIO
 
 int Net::load_param(const unsigned char* _mem)
 {
@@ -541,358 +470,5 @@ int Net::load_model(const unsigned char* _mem)
     return mem - _mem;
 }
 
-void Net::clear()
-{
-    blobs.clear();
-    for (size_t i=0; i<layers.size(); i++)
-    {
-        delete layers[i];
-    }
-    layers.clear();
-}
-
-Extractor Net::create_extractor() const
-{
-    return Extractor(this, blobs.size());
-}
-
-#if NCNN_STRING
-int Net::find_blob_index_by_name(const char* name) const
-{
-    for (size_t i=0; i<blobs.size(); i++)
-    {
-        const Blob& blob = blobs[i];
-        if (blob.name == name)
-        {
-            return i;
-        }
-    }
-
-    fprintf(stderr, "find_blob_index_by_name %s failed\n", name);
-    return -1;
-}
-
-int Net::find_layer_index_by_name(const char* name) const
-{
-    for (size_t i=0; i<layers.size(); i++)
-    {
-        const Layer* layer = layers[i];
-        if (layer->name == name)
-        {
-            return i;
-        }
-    }
-
-    fprintf(stderr, "find_layer_index_by_name %s failed\n", name);
-    return -1;
-}
-
-int Net::custom_layer_to_index(const char* type)
-{
-    const int custom_layer_registry_entry_count = custom_layer_registry.size();
-    for (int i=0; i<custom_layer_registry_entry_count; i++)
-    {
-        if (strcmp(type, custom_layer_registry[i].name) == 0)
-            return i;
-    }
-
-    return -1;
-}
-
-Layer* Net::create_custom_layer(const char* type)
-{
-    int index = custom_layer_to_index(type);
-    if (index == -1)
-        return 0;
-
-    return create_custom_layer(index);
-}
-#endif // NCNN_STRING
-
-Layer* Net::create_custom_layer(int index)
-{
-    const int custom_layer_registry_entry_count = custom_layer_registry.size();
-    if (index < 0 || index >= custom_layer_registry_entry_count)
-        return 0;
-
-    layer_creator_func layer_creator = custom_layer_registry[index].creator;
-    if (!layer_creator)
-        return 0;
-
-    return layer_creator();
-}
-
-int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightmode) const
-{
-    const Layer* layer = layers[layer_index];
-
-//     fprintf(stderr, "forward_layer %d %s\n", layer_index, layer->name.c_str());
-
-    if (layer->one_blob_only)
-    {
-        // load bottom blob
-        int bottom_blob_index = layer->bottoms[0];
-        int top_blob_index = layer->tops[0];
-
-        if (blob_mats[bottom_blob_index].dims == 0)
-        {
-            int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, lightmode);
-            if (ret != 0)
-                return ret;
-        }
-
-        Mat bottom_blob = blob_mats[bottom_blob_index];
-
-        if (lightmode)
-        {
-            // delete after taken in light mode
-            blob_mats[bottom_blob_index].release();
-            // deep copy for inplace forward if data is shared
-            if (layer->support_inplace && *bottom_blob.refcount != 1)
-            {
-                bottom_blob = bottom_blob.clone();
-            }
-        }
-
-        // forward
-        if (lightmode && layer->support_inplace)
-        {
-            Mat& bottom_top_blob = bottom_blob;
-#if NCNN_BENCHMARK
-            double start = get_current_time();
-            int ret = layer->forward_inplace(bottom_top_blob);
-            double end = get_current_time();
-            benchmark(layer, bottom_top_blob, bottom_top_blob, start, end);
-#else
-            int ret = layer->forward_inplace(bottom_top_blob);
-#endif // NCNN_BENCHMARK
-            if (ret != 0)
-                return ret;
-
-            // store top blob
-            blob_mats[top_blob_index] = bottom_top_blob;
-        }
-        else
-        {
-            Mat top_blob;
-#if NCNN_BENCHMARK
-            double start = get_current_time();
-            int ret = layer->forward(bottom_blob, top_blob);
-            double end = get_current_time();
-            benchmark(layer, bottom_blob, top_blob, start, end);
-#else
-            int ret = layer->forward(bottom_blob, top_blob);
-#endif // NCNN_BENCHMARK
-            if (ret != 0)
-                return ret;
-
-            // store top blob
-            blob_mats[top_blob_index] = top_blob;
-        }
-
-    }
-    else
-    {
-        // load bottom blobs
-        std::vector<Mat> bottom_blobs;
-        bottom_blobs.resize(layer->bottoms.size());
-        for (size_t i=0; i<layer->bottoms.size(); i++)
-        {
-            int bottom_blob_index = layer->bottoms[i];
-
-            if (blob_mats[bottom_blob_index].dims == 0)
-            {
-                int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, lightmode);
-                if (ret != 0)
-                    return ret;
-            }
-
-            bottom_blobs[i] = blob_mats[bottom_blob_index];
-
-            if (lightmode)
-            {
-                // delete after taken in light mode
-                blob_mats[bottom_blob_index].release();
-                // deep copy for inplace forward if data is shared
-                if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
-                {
-                    bottom_blobs[i] = bottom_blobs[i].clone();
-                }
-            }
-        }
-
-        // forward
-        if (lightmode && layer->support_inplace)
-        {
-            std::vector<Mat>& bottom_top_blobs = bottom_blobs;
-#if NCNN_BENCHMARK
-            double start = get_current_time();
-            int ret = layer->forward_inplace(bottom_top_blobs);
-            double end = get_current_time();
-            benchmark(layer, start, end);
-#else
-            int ret = layer->forward_inplace(bottom_top_blobs);
-#endif // NCNN_BENCHMARK
-            if (ret != 0)
-                return ret;
-
-            // store top blobs
-            for (size_t i=0; i<layer->tops.size(); i++)
-            {
-                int top_blob_index = layer->tops[i];
-
-                blob_mats[top_blob_index] = bottom_top_blobs[i];
-            }
-        }
-        else
-        {
-            std::vector<Mat> top_blobs;
-            top_blobs.resize(layer->tops.size());
-#if NCNN_BENCHMARK
-            double start = get_current_time();
-            int ret = layer->forward(bottom_blobs, top_blobs);
-            double end = get_current_time();
-            benchmark(layer, start, end);
-#else
-            int ret = layer->forward(bottom_blobs, top_blobs);
-#endif // NCNN_BENCHMARK
-            if (ret != 0)
-                return ret;
-
-            // store top blobs
-            for (size_t i=0; i<layer->tops.size(); i++)
-            {
-                int top_blob_index = layer->tops[i];
-
-                blob_mats[top_blob_index] = top_blobs[i];
-            }
-        }
-    }
-
-//     fprintf(stderr, "forward_layer %d %s done\n", layer_index, layer->name.c_str());
-//     const Mat& blob = blob_mats[layer->tops[0]];
-//     fprintf(stderr, "[%-2d %-16s %-16s]  %d    blobs count = %-3d   size = %-3d x %-3d\n", layer_index, layer->type.c_str(), layer->name.c_str(), layer->tops[0], blob.c, blob.h, blob.w);
-
-    return 0;
-}
-
-Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
-{
-    blob_mats.resize(blob_count);
-    lightmode = true;
-    num_threads = 0;
-}
-
-void Extractor::set_light_mode(bool enable)
-{
-    lightmode = enable;
-}
-
-void Extractor::set_num_threads(int _num_threads)
-{
-    num_threads = _num_threads;
-}
-
-int Extractor::input(int blob_index, const Mat& in)
-{
-    if (blob_index < 0 || blob_index >= (int)blob_mats.size())
-        return -1;
-
-    blob_mats[blob_index] = in;
-
-    return 0;
-}
-
-int Extractor::extract(int blob_index, Mat& feat)
-{
-    if (blob_index < 0 || blob_index >= (int)blob_mats.size())
-        return -1;
-
-    int ret = 0;
-
-    if (blob_mats[blob_index].dims == 0)
-    {
-        int layer_index = net->blobs[blob_index].producer;
-
-#ifdef _OPENMP
-        int dynamic_current = 0;
-        int num_threads_current = 1;
-        if (num_threads)
-        {
-            dynamic_current = omp_get_dynamic();
-            num_threads_current = omp_get_num_threads();
-            omp_set_dynamic(0);
-            omp_set_num_threads(num_threads);
-        }
-#endif
-
-        ret = net->forward_layer(layer_index, blob_mats, lightmode);
-
-#ifdef _OPENMP
-        if (num_threads)
-        {
-            omp_set_dynamic(dynamic_current);
-            omp_set_num_threads(num_threads_current);
-        }
-#endif
-    }
-
-    feat = blob_mats[blob_index];
-
-    return ret;
-}
-
-#if NCNN_STRING
-int Extractor::input(const char* blob_name, const Mat& in)
-{
-    int blob_index = net->find_blob_index_by_name(blob_name);
-    if (blob_index == -1)
-        return -1;
-
-    blob_mats[blob_index] = in;
-
-    return 0;
-}
-
-int Extractor::extract(const char* blob_name, Mat& feat)
-{
-    int blob_index = net->find_blob_index_by_name(blob_name);
-    if (blob_index == -1)
-        return -1;
-
-    int ret = 0;
-
-    if (blob_mats[blob_index].dims == 0)
-    {
-        int layer_index = net->blobs[blob_index].producer;
-
-#ifdef _OPENMP
-        int dynamic_current = 0;
-        int num_threads_current = 1;
-        if (num_threads)
-        {
-            dynamic_current = omp_get_dynamic();
-            num_threads_current = omp_get_num_threads();
-            omp_set_dynamic(0);
-            omp_set_num_threads(num_threads);
-        }
-#endif
-
-        ret = net->forward_layer(layer_index, blob_mats, lightmode);
-
-#ifdef _OPENMP
-        if (num_threads)
-        {
-            omp_set_dynamic(dynamic_current);
-            omp_set_num_threads(num_threads_current);
-        }
-#endif
-    }
-
-    feat = blob_mats[blob_index];
-
-    return ret;
-}
-#endif // NCNN_STRING
 
 } // namespace ncnn

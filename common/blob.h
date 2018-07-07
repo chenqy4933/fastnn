@@ -17,9 +17,10 @@
 
 #include <string>
 #include <vector>
-#include "platform.h"
+#include "mat.h"
+#include "layer.h"
 
-namespace ncnn {
+namespace fastnn {
 
 class Blob
 {
@@ -27,17 +28,33 @@ public:
     // empty
     Blob();
 
+    Blob(Mat & mat);
+
+    Blob(std::string name,Layer* belong_to);
+
+    Blob(int w,int h,int c,std::string name,Layer* layer);
+
+    Blob& operator=(const Blob& blob);
+
+    int clone_mat(Blob& blob);
+
+    int create(int w,int h,int c,std::string & name="",Layer* product=NULL);
+
+    int calculte_memory();
+
 public:
-#if NCNN_STRING
+    int width;
+    int height;
+    int channel;
+    //the memory of the blob
+    Mat blob_mat;
     // blob name
     std::string name;
-#endif // NCNN_STRING
-    // layer index which produce this blob as output
-    int producer;
-    // layer index which need this blob as input
-    std::vector<int> consumers;
+    //indict to the layer
+    Layer * product_layer;
+
 };
 
-} // namespace ncnn
+}
 
 #endif // NCNN_BLOB_H

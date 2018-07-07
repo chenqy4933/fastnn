@@ -14,11 +14,74 @@
 
 #include "blob.h"
 
-namespace ncnn {
+namespace fastnn {
 
 Blob::Blob()
 {
-    producer = -1;
+    product_layer=NULL;
+    name="no_define";
+    width=0;
+    height=0;
+    channel=0;
 }
 
-} // namespace ncnn
+Blob::Blob(Mat & mat)
+{
+    product_layer=NULL;
+    name="no_define";
+    width=mat.w;
+    height=mat.h;
+    channel=mat.real_c;
+    blob_mat=mat;
+}
+
+inline Blob& Blob::operator=(const Blob& blob)
+{
+    if (this == &blob)
+        return *this;
+
+    product_layer=blob.product_layer;
+    name=blob.name;
+    width=blob.width;
+    height=blob.height;
+    channel=blob.channel;
+    blob_mat=blob.mat;
+    return *this;
+}
+
+int Blob::create(int w,int h,int c,std::string name,Layer* layer)
+{
+    product_layer=layer;
+    name=name;
+    width=w;
+    height=h;
+    channel=c;
+    blob_mat=Mat(w,h,c);
+}
+
+Blob::Blob(int w,int h,int c,std::string name,Layer* layer)
+{
+    product_layer=layer;
+    name=name;
+    width=w;
+    height=h;
+    channel=c;
+}
+
+Blob::Blob(std::string name,Layer* belong_to,Mat mat)
+{
+    if(width==mat.w && height==mat.h && channel==mat.real_c)
+    {
+        product_layer = belong_to;
+        this->name = name;
+        this->blob_mat = mat;
+    }
+}
+
+int Blob::clone_mat(Blob& blob)
+{
+    blob_mat=blob.blob_mat.clone();
+    return 0;
+}
+
+} // namespace fastnn

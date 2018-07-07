@@ -18,12 +18,12 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
-#include "mat.h"
+#include "blob.h"
 #include "modelbin.h"
 #include "paramdict.h"
 #include "platform.h"
 
-namespace ncnn {
+namespace fastnn {
 
 class Layer
 {
@@ -42,61 +42,31 @@ public:
     virtual int load_model(const ModelBin& mb);
 
 public:
-    // one input and one output blob
-    bool one_blob_only;
-
     // support inplace inference
     bool support_inplace;
 
 public:
+
+    virtual int infershape(const std::vector<Blob>& bottom_blobs);
     // implement inference
     // return 0 if success
-    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
-
-    // implement inplace inference
-    // return 0 if success
-    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs) const;
-    virtual int forward_inplace(Mat& bottom_top_blob) const;
+    virtual int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs= vector<Blob>()) const;
 
 public:
-#if NCNN_STRING
     // layer type name
     std::string type;
     // layer name
     std::string name;
-#endif // NCNN_STRING
     // blob index which this layer needs as input
-    std::vector<int> bottoms;
+    std::vector<Blob> bottoms;
     // blob index which this layer produces as output
-    std::vector<int> tops;
+    std::vector<Blob> tops;
+    // all the layer will use temp blobs;
+    std::vector<Blob> temp_blobs;
+    // all the next layers
+    std::vector<Layer*> nexts;
 };
 
-// layer factory function
-typedef Layer* (*layer_creator_func)();
+} // namespace fastnn
 
-struct layer_registry_entry
-{
-#if NCNN_STRING
-    // layer type name
-    const char* name;
-#endif // NCNN_STRING
-    // layer factory entry
-    layer_creator_func creator;
-};
-
-#if NCNN_STRING
-// get layer type from type name
-int layer_to_index(const char* type);
-// create layer from type name
-Layer* create_layer(const char* type);
-#endif // NCNN_STRING
-// create layer from layer type
-Layer* create_layer(int index);
-
-#define DEFINE_LAYER_CREATOR(name) \
-    ::ncnn::Layer* name##_layer_creator() { return new name; }
-
-} // namespace ncnn
-
-#endif // NCNN_LAYER_H
+#endif

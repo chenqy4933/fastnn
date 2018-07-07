@@ -17,9 +17,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <vector>
-#include "platform.h"
 
-namespace ncnn {
+namespace fastnn {
 
 Mat ModelBin::load(int w, int h, int type) const
 {
@@ -39,7 +38,7 @@ Mat ModelBin::load(int w, int h, int c, int type) const
     return m.reshape(w, h, c);
 }
 
-#if NCNN_STDIO
+
 ModelBinFromStdio::ModelBinFromStdio(FILE* _binfp) : binfp(_binfp)
 {
 }
@@ -158,7 +157,7 @@ Mat ModelBinFromStdio::load(int w, int type) const
 
     return Mat();
 }
-#endif // NCNN_STDIO
+
 
 ModelBinFromMemory::ModelBinFromMemory(const unsigned char*& _mem) : mem(_mem)
 {
@@ -255,4 +254,4 @@ Mat ModelBinFromMatArray::load(int /*w*/, int /*type*/) const
     return m;
 }
 
-} // namespace ncnn
+} // namespace fastnn

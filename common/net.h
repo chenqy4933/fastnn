@@ -12,8 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef NCNN_NET_H
-#define NCNN_NET_H
+#ifndef FASTNN_NET_H
+#define FASTNN_NET_H
 
 #include <stdio.h>
 #include <vector>
@@ -22,9 +22,8 @@
 #include "mat.h"
 #include "platform.h"
 
-namespace ncnn {
+namespace fastnn {
 
-class Extractor;
 class Net
 {
 public:
@@ -33,22 +32,6 @@ public:
     // clear and destroy
     ~Net();
 
-#if NCNN_STRING
-    // register custom layer by layer type name
-    // return 0 if success
-    int register_custom_layer(const char* type, layer_creator_func creator);
-#endif // NCNN_STRING
-    // register custom layer by layer type
-    // return 0 if success
-    int register_custom_layer(int index, layer_creator_func creator);
-
-#if NCNN_STDIO
-#if NCNN_STRING
-    // load network structure from plain param file
-    // return 0 if success
-    int load_param(FILE* fp);
-    int load_param(const char* protopath);
-#endif // NCNN_STRING
     // load network structure from binary param file
     // return 0 if success
     int load_param_bin(FILE* fp);
@@ -58,45 +41,24 @@ public:
     // return 0 if success
     int load_model(FILE* fp);
     int load_model(const char* modelpath);
-#endif // NCNN_STDIO
 
-    // load network structure from external memory
-    // memory pointer must be 32-bit aligned
-    // return bytes consumed
+
     int load_param(const unsigned char* mem);
 
-    // reference network weight data from external memory
-    // weight data is not copied but referenced
-    // so external memory should be retained when used
-    // memory pointer must be 32-bit aligned
-    // return bytes consumed
     int load_model(const unsigned char* mem);
 
     // unload network structure and weight data
     void clear();
 
-    // construct an Extractor from network
-    Extractor create_extractor() const;
+    //Forward the net
 
-protected:
-    friend class Extractor;
-#if NCNN_STRING
-    int find_blob_index_by_name(const char* name) const;
-    int find_layer_index_by_name(const char* name) const;
-    int custom_layer_to_index(const char* type);
-    Layer* create_custom_layer(const char* type);
-#endif // NCNN_STRING
-    Layer* create_custom_layer(int index);
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightmode) const;
-
-protected:
-    std::vector<Blob> blobs;
-    std::vector<Layer*> layers;
-
-    std::vector<layer_registry_entry> custom_layer_registry;
+    std::map<std::string,blob*> input;
+    std::map<std::string,blob*> output;
+    std::map<std::string,blob*> allBlob;
+    std::map<std::string,Layer*> allLayer;
 };
 
-class Extractor
+class Engine
 {
 public:
     // enable light mode
@@ -109,7 +71,7 @@ public:
     // default count is system depended
     void set_num_threads(int num_threads);
 
-#if NCNN_STRING
+
     // set input by blob name
     // return 0 if success
     int input(const char* blob_name, const Mat& in);
@@ -117,7 +79,6 @@ public:
     // get result by blob name
     // return 0 if success
     int extract(const char* blob_name, Mat& feat);
-#endif // NCNN_STRING
 
     // set input by blob index
     // return 0 if success
@@ -127,17 +88,26 @@ public:
     // return 0 if success
     int extract(int blob_index, Mat& feat);
 
-protected:
-    friend Extractor Net::create_extractor() const;
-    Extractor(const Net* net, int blob_count);
+    //forward compute the whole network
+    //return 0 if success
+    int Forward(void);
+
+    //optimize the whole network
+    //return 0 if success
+    //do the fuse of layer and so on
+    int net_optimize();
+
+    //plan for the memory
+    //return the size of memory to be used
+    //plan for the memory
+    size_t net_memory_plan(int level);
 
 private:
-    const Net* net;
-    std::vector<Mat> blob_mats;
-    bool lightmode;
+    Net* net;
+    bool lightmode;     //in this model the memory is applied and deleted in runtime.
     int num_threads;
 };
 
-} // namespace ncnn
+} //
 
-#endif // NCNN_NET_H
+#endif //FASTNN_NET_H
