@@ -18,7 +18,6 @@ namespace fastnn {
 
 Blob::Blob()
 {
-    product_layer=NULL;
     name="no_define";
     width=0;
     height=0;
@@ -27,7 +26,6 @@ Blob::Blob()
 
 Blob::Blob(Mat & mat)
 {
-    product_layer=NULL;
     name="no_define";
     width=mat.w;
     height=mat.h;
@@ -40,7 +38,6 @@ inline Blob& Blob::operator=(const Blob& blob)
     if (this == &blob)
         return *this;
 
-    product_layer=blob.product_layer;
     name=blob.name;
     width=blob.width;
     height=blob.height;
@@ -49,9 +46,8 @@ inline Blob& Blob::operator=(const Blob& blob)
     return *this;
 }
 
-int Blob::create(int w,int h,int c,std::string name,Layer* layer)
+int Blob::create(int w,int h,int c,std::string name)
 {
-    product_layer=layer;
     name=name;
     width=w;
     height=h;
@@ -59,20 +55,18 @@ int Blob::create(int w,int h,int c,std::string name,Layer* layer)
     blob_mat=Mat(w,h,c);
 }
 
-Blob::Blob(int w,int h,int c,std::string name,Layer* layer)
+Blob::Blob(int w,int h,int c,std::string name)
 {
-    product_layer=layer;
     name=name;
     width=w;
     height=h;
     channel=c;
 }
 
-Blob::Blob(std::string name,Layer* belong_to,Mat mat)
+Blob::Blob(std::string name,Mat mat)
 {
     if(width==mat.w && height==mat.h && channel==mat.real_c)
     {
-        product_layer = belong_to;
         this->name = name;
         this->blob_mat = mat;
     }

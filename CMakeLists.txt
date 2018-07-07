@@ -25,7 +25,6 @@ add_definitions(-Wall -Wextra -Wno-unused-function)
 if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
     add_definitions(-fPIC)
     add_definitions(-Ofast)
-
     add_definitions(-ffast-math)
 endif()
 # add_definitions(-march=native)
@@ -47,5 +46,31 @@ endif()
 
 ##############################################
 
-add_subdirectory(common)
-add_subdirectory(layer)
+include_directories("${PROJECT_SOURCE_DIR}/common")
+include_directories("${PROJECT_SOURCE_DIR}/layer")
+include_directories("${PROJECT_SOURCE_DIR}/nnfunc")
+
+list(APPEND fastnn_SRCS
+        common/layer.cpp
+        common/blob.cpp
+        common/mat.cpp
+        common/modelbin.cpp
+        common/net.cpp
+        common/paramdict.cpp
+        common/modelbin.cpp
+        )
+file(GLOB LAYER_SRC layer/*.cpp)
+
+list(APPEND fastnn_SRCS ${LAYER_SRC})
+
+add_library(fastnn STATIC ${fastnn_SRCS})
+
+install(TARGETS fastnn ARCHIVE DESTINATION lib)
+install(FILES
+        common/blob.h
+        common/mat.h
+        common/net.h
+        common/layer.h
+        DESTINATION include
+        )
+#add_subdirectory(nnfunc)

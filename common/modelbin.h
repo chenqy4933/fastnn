@@ -16,8 +16,6 @@
 #define FAST_MODELBIN_H
 
 #include <stdio.h>
-#include "mat.h"
-#include "platform.h"
 
 namespace fastnn {
 
@@ -32,10 +30,7 @@ public:
     // 3 = uint8
     // load vec
     virtual Mat load(int w, int type) const = 0;
-    // load image
-    virtual Mat load(int w, int h, int type) const;
-    // load dim
-    virtual Mat load(int w, int h, int c, int type) const;
+
 };
 
 class ModelBinFromStdio : public ModelBin
@@ -48,31 +43,6 @@ public:
 
 protected:
     FILE* binfp;
-};
-
-
-class ModelBinFromMemory : public ModelBin
-{
-public:
-    // construct from external memory
-    ModelBinFromMemory(const unsigned char*& mem);
-
-    virtual Mat load(int w, int type) const;
-
-protected:
-    const unsigned char*& mem;
-};
-
-class ModelBinFromMatArray : public ModelBin
-{
-public:
-    // construct from weight blob array
-    ModelBinFromMatArray(const Mat* weights);
-
-    virtual Mat load(int w, int type) const;
-
-protected:
-    mutable const Mat* weights;
 };
 
 } // namespace fastnn

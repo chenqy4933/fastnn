@@ -14,13 +14,11 @@
 
 #include "scale.h"
 
-namespace ncnn {
+namespace fastnn {
 
-DEFINE_LAYER_CREATOR(Scale)
 
 Scale::Scale()
 {
-    one_blob_only = true;
     support_inplace = true;
 }
 
@@ -54,10 +52,11 @@ int Scale::load_model(const ModelBin& mb)
     return 0;
 }
 
-int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
+int Scale::forward(std::vector<Blob> bottoms,std::vector<Blob> tops) const
 {
-    Mat& bottom_top_blob = bottom_top_blobs[0];
-    const Mat& scale_blob = bottom_top_blobs[1];
+    Mat& bottom_top_blob = bottoms[0].blob_mat;
+
+    const Mat& scale_blob = scale_data;
 
     int dims = bottom_top_blob.dims;
 
@@ -164,13 +163,4 @@ int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
     return 0;
 }
 
-int Scale::forward_inplace(Mat& bottom_top_blob) const
-{
-    std::vector<Mat> bottom_top_blobs(2);
-    bottom_top_blobs[0] = bottom_top_blob;
-    bottom_top_blobs[1] = scale_data;
-
-    return forward_inplace(bottom_top_blobs);
-}
-
-} // namespace ncnn
+} // namespace fastnn

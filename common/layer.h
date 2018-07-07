@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 #include "blob.h"
+#include "mat.h"
 #include "modelbin.h"
 #include "paramdict.h"
 #include "platform.h"
@@ -58,9 +59,9 @@ public:
     // layer name
     std::string name;
     // blob index which this layer needs as input
-    std::vector<Blob> bottoms;
+    std::vector<Blob*> bottoms;
     // blob index which this layer produces as output
-    std::vector<Blob> tops;
+    std::vector<Blob*> tops;
     // all the layer will use temp blobs;
     std::vector<Blob> temp_blobs;
     // all the next layers

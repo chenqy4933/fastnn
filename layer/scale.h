@@ -17,7 +17,7 @@
 
 #include "layer.h"
 
-namespace ncnn {
+namespace fastnn {
 
 class Scale : public Layer
 {
@@ -28,8 +28,7 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
-    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs) const;
-    virtual int forward_inplace(Mat& bottom_top_blob) const;
+    virtual int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs= vector<Blob>()) const;
 
 public:
     // param
@@ -41,6 +40,6 @@ public:
     Mat bias_data;
 };
 
-} // namespace ncnn
+}
 
 #endif // LAYER_SCALE_H

@@ -18,26 +18,8 @@
 #include <string.h>
 #include <vector>
 
-namespace fastnn {
-
-Mat ModelBin::load(int w, int h, int type) const
+namespace fastnn
 {
-    Mat m = load(w * h, type);
-    if (m.empty())
-        return m;
-
-    return m.reshape(w, h);
-}
-
-Mat ModelBin::load(int w, int h, int c, int type) const
-{
-    Mat m = load(w * h * c, type);
-    if (m.empty())
-        return m;
-
-    return m.reshape(w, h, c);
-}
-
 
 ModelBinFromStdio::ModelBinFromStdio(FILE* _binfp) : binfp(_binfp)
 {
@@ -67,7 +49,7 @@ Mat ModelBinFromStdio::load(int w, int type) const
         nread = fread(&flag_struct, sizeof(flag_struct), 1, binfp);
         if (nread != 1)
         {
-            fprintf(stderr, "ModelBin read flag_struct failed %d\n", nread);
+            printf("ModelBinFromStdio load failed %d\n", nread);
             return Mat();
         }
 
@@ -82,7 +64,7 @@ Mat ModelBinFromStdio::load(int w, int type) const
             nread = fread(float16_weights.data(), align_data_size, 1, binfp);
             if (nread != 1)
             {
-                fprintf(stderr, "ModelBin read float16_weights failed %d\n", nread);
+                printf("ModelBinFromStdio load float16_weights failed %d\n", nread);
                 return Mat();
             }
 
@@ -100,7 +82,7 @@ Mat ModelBinFromStdio::load(int w, int type) const
             nread = fread(quantization_value, 256 * sizeof(float), 1, binfp);
             if (nread != 1)
             {
-                fprintf(stderr, "ModelBin read quantization_value failed %d\n", nread);
+                printf("ModelBinFromStdio load quantization_value failed %d\n", nread);
                 return Mat();
             }
 
@@ -110,7 +92,7 @@ Mat ModelBinFromStdio::load(int w, int type) const
             nread = fread(index_array.data(), align_weight_data_size, 1, binfp);
             if (nread != 1)
             {
-                fprintf(stderr, "ModelBin read index_array failed %d\n", nread);
+                printf("ModelBinFromStdio load array failed %d\n", nread);
                 return Mat();
             }
 
@@ -126,7 +108,7 @@ Mat ModelBinFromStdio::load(int w, int type) const
             nread = fread(m, w * sizeof(float), 1, binfp);
             if (nread != 1)
             {
-                fprintf(stderr, "ModelBin read weight_data failed %d\n", nread);
+                printf("ModelBinFromStdio load weight failed %d\n", nread);
                 return Mat();
             }
         }
@@ -143,7 +125,7 @@ Mat ModelBinFromStdio::load(int w, int type) const
         int nread = fread(m, w * sizeof(float), 1, binfp);
         if (nread != 1)
         {
-            fprintf(stderr, "ModelBin read weight_data failed %d\n", nread);
+            fprintf("ModelBinFromStdio load weight_data failed %d\n", nread);
             return Mat();
         }
 
@@ -151,7 +133,7 @@ Mat ModelBinFromStdio::load(int w, int type) const
     }
     else
     {
-        fprintf(stderr, "ModelBin load type %d not implemented\n", type);
+        printf("ModelBin load type %d not implemented\n", type);
         return Mat();
     }
 
@@ -159,99 +141,7 @@ Mat ModelBinFromStdio::load(int w, int type) const
 }
 
 
-ModelBinFromMemory::ModelBinFromMemory(const unsigned char*& _mem) : mem(_mem)
-{
-}
 
-Mat ModelBinFromMemory::load(int w, int type) const
-{
-    if (!mem)
-        return Mat();
 
-    if (type == 0)
-    {
-        union
-        {
-            struct
-            {
-                unsigned char f0;
-                unsigned char f1;
-                unsigned char f2;
-                unsigned char f3;
-            };
-            unsigned int tag;
-        } flag_struct;
-
-        memcpy(&flag_struct, mem, sizeof(flag_struct));
-        mem += sizeof(flag_struct);
-
-        unsigned int flag = flag_struct.f0 + flag_struct.f1 + flag_struct.f2 + flag_struct.f3;
-
-        if (flag_struct.tag == 0x01306B47)
-        {
-            // half-precision data
-            Mat m = Mat::from_float16((unsigned short*)mem, w);
-            mem += alignSize(w * sizeof(unsigned short), 4);
-            return m;
-        }
-
-        if (flag != 0)
-        {
-            // quantized data
-            const float* quantization_value = (const float*)mem;
-            mem += 256 * sizeof(float);
-
-            const unsigned char* index_array = (const unsigned char*)mem;
-            mem += alignSize(w * sizeof(unsigned char), 4);
-
-            Mat m(w);
-            if (m.empty())
-                return m;
-
-            float* ptr = m;
-            for (int i = 0; i < w; i++)
-            {
-                ptr[i] = quantization_value[ index_array[i] ];
-            }
-
-            return m;
-        }
-        else if (flag_struct.f0 == 0)
-        {
-            // raw data
-            Mat m = Mat(w, (float*)mem);
-            mem += w * sizeof(float);
-            return m;
-        }
-    }
-    else if (type == 1)
-    {
-        // raw data
-        Mat m = Mat(w, (float*)mem);
-        mem += w * sizeof(float);
-        return m;
-    }
-    else
-    {
-        fprintf(stderr, "ModelBin load type %d not implemented\n", type);
-        return Mat();
-    }
-
-    return Mat();
-}
-
-ModelBinFromMatArray::ModelBinFromMatArray(const Mat* _weights) : weights(_weights)
-{
-}
-
-Mat ModelBinFromMatArray::load(int /*w*/, int /*type*/) const
-{
-    if (!weights)
-        return Mat();
-
-    Mat m = weights[0];
-    weights++;
-    return m;
-}
 
 } // namespace fastnn

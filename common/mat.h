@@ -54,12 +54,6 @@ public:
     void fill(T v);
     // deep copy
     Mat clone() const;
-    // reshape vec
-    Mat reshape(int w) const;
-    // reshape image
-    Mat reshape(int w, int h) const;
-    // reshape dim
-    Mat reshape(int w, int h, int c) const;
     // allocate vec
     void create(int w, size_t elemsize = 4);
     // allocate image

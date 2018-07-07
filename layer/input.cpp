@@ -16,11 +16,8 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Input)
-
 Input::Input()
 {
-    one_blob_only = true;
     support_inplace = true;
 }
 
@@ -33,7 +30,7 @@ int Input::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Input::forward_inplace(Mat& /*bottom_top_blob*/) const
+int Input::forward(std::vector<Blob> bottoms,std::vector<Blob> tops) const
 {
     return 0;
 }

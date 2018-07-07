@@ -30,15 +30,15 @@ public:
 
     Blob(Mat & mat);
 
-    Blob(std::string name,Layer* belong_to);
+    Blob(std::string name);
 
-    Blob(int w,int h,int c,std::string name,Layer* layer);
+    Blob(int w,int h,int c,std::string name);
 
     Blob& operator=(const Blob& blob);
 
     int clone_mat(Blob& blob);
 
-    int create(int w,int h,int c,std::string & name="",Layer* product=NULL);
+    int create(int w,int h,int c,std::string& name="");
 
     int calculte_memory();
 
@@ -50,9 +50,8 @@ public:
     Mat blob_mat;
     // blob name
     std::string name;
-    //indict to the layer
-    Layer * product_layer;
-
+    Layer * consumer;
+    Layer * producer;
 };
 
 }

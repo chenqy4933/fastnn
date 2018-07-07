@@ -34,28 +34,38 @@ public:
 
     // load network structure from binary param file
     // return 0 if success
-    int load_param_bin(FILE* fp);
-    int load_param_bin(const char* protopath);
+    int load_param(FILE* fp);
+    int load_param(const char* protopath);
 
     // load network weight data from model file
     // return 0 if success
     int load_model(FILE* fp);
     int load_model(const char* modelpath);
 
-
-    int load_param(const unsigned char* mem);
-
-    int load_model(const unsigned char* mem);
-
     // unload network structure and weight data
     void clear();
 
+    int organize_net(void);
     //Forward the net
+
+    //forward compute the whole network
+    //return 0 if success
+    int Forward(void);
+
+    //optimize the whole network
+    //return 0 if success
+    //do the fuse of layer and so on
+    int net_optimize();
+
+    //plan for the memory
+    //return the size of memory to be used
+    //plan for the memory
+    size_t net_memory_plan(int level);
 
     std::map<std::string,blob*> input;
     std::map<std::string,blob*> output;
-    std::map<std::string,blob*> allBlob;
-    std::map<std::string,Layer*> allLayer;
+    std::map<std::string,blob> allBlob;
+    std::vector<Layer*> allLayer;
 };
 
 class Engine
@@ -79,28 +89,6 @@ public:
     // get result by blob name
     // return 0 if success
     int extract(const char* blob_name, Mat& feat);
-
-    // set input by blob index
-    // return 0 if success
-    int input(int blob_index, const Mat& in);
-
-    // get result by blob index
-    // return 0 if success
-    int extract(int blob_index, Mat& feat);
-
-    //forward compute the whole network
-    //return 0 if success
-    int Forward(void);
-
-    //optimize the whole network
-    //return 0 if success
-    //do the fuse of layer and so on
-    int net_optimize();
-
-    //plan for the memory
-    //return the size of memory to be used
-    //plan for the memory
-    size_t net_memory_plan(int level);
 
 private:
     Net* net;
