@@ -46,14 +46,15 @@ endif()
 
 ##############################################
 
-include_directories("${PROJECT_SOURCE_DIR}/common")
-include_directories("${PROJECT_SOURCE_DIR}/layer")
-include_directories("${PROJECT_SOURCE_DIR}/nnfunc")
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories("${PROJECT_SOURCE_DIR}/common/")
+include_directories("${PROJECT_SOURCE_DIR}/layer/")
+include_directories("${PROJECT_SOURCE_DIR}/nnfunc/")
 
 list(APPEND fastnn_SRCS
         common/layer.cpp
         common/blob.cpp
-        common/mat.cpp
         common/modelbin.cpp
         common/net.cpp
         common/paramdict.cpp
@@ -68,7 +69,7 @@ add_library(fastnn STATIC ${fastnn_SRCS})
 install(TARGETS fastnn ARCHIVE DESTINATION lib)
 install(FILES
         common/blob.h
-        common/mat.h
+        common/memoryAlloc.h
         common/net.h
         common/layer.h
         DESTINATION include

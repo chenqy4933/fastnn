@@ -1,21 +1,10 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+
 
 #include "net.h"
 #include "layer_register.h"
 #include "modelbin.h"
 #include "paramdict.h"
+#include "memoryAlloc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -97,9 +86,9 @@ int Net::load_param(FILE* fp)
             }
             else
             {
-                Bolb temp_blob=it->second;
-                temp_blob.consumer=layer;
-                layer->bottoms[i]=temp_blob;
+                Blob temp_blob=it->second;
+                temp_blob.consumer.push_back(layer);
+                layer->bottoms[i]=&temp_blob;
             }
         }
 
@@ -121,7 +110,7 @@ int Net::load_param(FILE* fp)
             top_blob.producer = layer;
             allBlob[name]=top_blob;
 
-            layer->tops[i] = top_blob;
+            layer->tops[i] = &top_blob;
         }
 
         // layer specific params
@@ -139,7 +128,7 @@ int Net::load_param(FILE* fp)
             continue;
         }
 
-        layers[layer_index] = layer;
+        allLayer[layer_index] = layer;
 
         layer_index++;
     }
@@ -164,7 +153,7 @@ int Net::load_param(const char* protopath)
 
 int Net::load_model(FILE* fp)
 {
-    if (layers.empty())
+    if (allLayer.empty())
     {
         fprintf(stderr, "network graph not ready\n");
         return -1;
@@ -174,14 +163,14 @@ int Net::load_model(FILE* fp)
     int ret = 0;
 
     ModelBinFromStdio mb(fp);
-    for (size_t i=0; i<layers.size(); i++)
+    for (size_t i=0; i<allLayer.size(); i++)
     {
-        Layer* layer = layers[i];
+        Layer* layer = allLayer[i];
 
         int lret = layer->load_model(mb);
         if (lret != 0)
         {
-            printf("Load_model of layer %d failed\n", layer->name.c_str());
+            printf("Load_model of layer %s failed\n", layer->name.c_str());
             ret = -1;
             break;
         }

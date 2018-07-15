@@ -1,26 +1,13 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+
 
 #ifndef FASTNN_NET_H
 #define FASTNN_NET_H
 
 #include <stdio.h>
 #include <vector>
+#include <map>
 #include "blob.h"
 #include "layer.h"
-#include "mat.h"
-#include "platform.h"
 
 namespace fastnn {
 
@@ -43,7 +30,7 @@ public:
     int load_model(const char* modelpath);
 
     // unload network structure and weight data
-    void clear();
+    int clear();
 
     int organize_net(void);
     //Forward the net
@@ -62,10 +49,12 @@ public:
     //plan for the memory
     size_t net_memory_plan(int level);
 
-    std::map<std::string,blob*> input;
-    std::map<std::string,blob*> output;
-    std::map<std::string,blob> allBlob;
+    std::map<std::string,Blob*> input;
+    std::map<std::string,Blob*> output;
+    std::map<std::string,Blob> allBlob;
     std::vector<Layer*> allLayer;
+
+    std::vector<float*> allPtr;
 };
 
 class Engine
@@ -84,11 +73,11 @@ public:
 
     // set input by blob name
     // return 0 if success
-    int input(const char* blob_name, const Mat& in);
+    int input(const char* blob_name, const float * data);
 
     // get result by blob name
     // return 0 if success
-    int extract(const char* blob_name, Mat& feat);
+    int extract(const char* blob_name, float * data );
 
 private:
     Net* net;

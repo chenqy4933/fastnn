@@ -1,18 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+
 
 #include "modelbin.h"
+#include "memoryAlloc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -25,10 +14,10 @@ ModelBinFromStdio::ModelBinFromStdio(FILE* _binfp) : binfp(_binfp)
 {
 }
 
-Mat ModelBinFromStdio::load(int w, int type) const
+float* ModelBinFromStdio::load(int w, int type) const
 {
     if (!binfp)
-        return Mat();
+        return NULL;
 
     if (type == 0)
     {
@@ -50,7 +39,7 @@ Mat ModelBinFromStdio::load(int w, int type) const
         if (nread != 1)
         {
             printf("ModelBinFromStdio load failed %d\n", nread);
-            return Mat();
+            return NULL;
         }
 
         unsigned int flag = flag_struct.f0 + flag_struct.f1 + flag_struct.f2 + flag_struct.f3;
@@ -65,15 +54,19 @@ Mat ModelBinFromStdio::load(int w, int type) const
             if (nread != 1)
             {
                 printf("ModelBinFromStdio load float16_weights failed %d\n", nread);
-                return Mat();
+                return NULL;
             }
-
-            return Mat::from_float16(float16_weights.data(), w);
+            float* weight16=fastnn_alloc(w);
+            for(int i=0;i<w;i++)
+            {
+                weight16[i]=half2float(float16_weights[i]);
+            }
+            return weight16;
         }
 
-        Mat m(w);
-        if (m.empty())
-            return m;
+        float* data=fastnn_alloc(w);
+        if (data==NULL)
+            return NULL;
 
         if (flag != 0)
         {
@@ -83,7 +76,8 @@ Mat ModelBinFromStdio::load(int w, int type) const
             if (nread != 1)
             {
                 printf("ModelBinFromStdio load quantization_value failed %d\n", nread);
-                return Mat();
+                fastnn_free(data);
+                return NULL;
             }
 
             int align_weight_data_size = alignSize(w * sizeof(unsigned char), 4);
@@ -93,10 +87,11 @@ Mat ModelBinFromStdio::load(int w, int type) const
             if (nread != 1)
             {
                 printf("ModelBinFromStdio load array failed %d\n", nread);
-                return Mat();
+                fastnn_free(data);
+                return NULL;
             }
 
-            float* ptr = m;
+            float* ptr = data;
             for (int i = 0; i < w; i++)
             {
                 ptr[i] = quantization_value[ index_array[i] ];
@@ -105,39 +100,41 @@ Mat ModelBinFromStdio::load(int w, int type) const
         else if (flag_struct.f0 == 0)
         {
             // raw data
-            nread = fread(m, w * sizeof(float), 1, binfp);
+            nread = fread(data, w * sizeof(float), 1, binfp);
             if (nread != 1)
             {
                 printf("ModelBinFromStdio load weight failed %d\n", nread);
-                return Mat();
+                fastnn_free(data);
+                return NULL;
             }
         }
 
-        return m;
+        return data;
     }
     else if (type == 1)
     {
-        Mat m(w);
-        if (m.empty())
-            return m;
+        float* data=fastnn_alloc(w);
+        if (data==NULL)
+            return NULL;
 
         // raw data
-        int nread = fread(m, w * sizeof(float), 1, binfp);
+        int nread = fread(data, w * sizeof(float), 1, binfp);
         if (nread != 1)
         {
-            fprintf("ModelBinFromStdio load weight_data failed %d\n", nread);
-            return Mat();
+            printf("ModelBinFromStdio load weight_data failed %d\n", nread);
+            fastnn_free(data);
+            return NULL;
         }
 
-        return m;
+        return data;
     }
     else
     {
         printf("ModelBin load type %d not implemented\n", type);
-        return Mat();
+        return NULL;
     }
 
-    return Mat();
+    return NULL;
 }
 
 

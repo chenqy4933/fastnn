@@ -9,8 +9,8 @@
 #include <string>
 
 //////////////////////////////all support layer
-#include"layer/input.h"
-#include"layer/scale.h"
+#include"input.h"
+#include"scale.h"
 /////////////////
 
 namespace fastnn
@@ -19,7 +19,7 @@ namespace fastnn
     {
     public:
         typedef Layer *(*Creator)(void);
-        typedef std::map<string, Creator> CreatorRegistry;
+        typedef std::map<std::string, Creator> CreatorRegistry;
 
         static CreatorRegistry &Registry()
         {
@@ -28,7 +28,7 @@ namespace fastnn
         }
 
         // Adds a creator.
-        static void AddCreator(const string &type, Creator creator)
+        static void AddCreator(const std::string &type, Creator creator)
         {
             CreatorRegistry &registry = Registry();
             registry[type] = creator;
@@ -44,15 +44,15 @@ namespace fastnn
             }
             else
             {
-                fprintf(stderr, "fastnn does not  support the %s layer!! \n", type.c_str());
+                printf("fastnn does not  support the %s layer!! \n", layer_type.c_str());
                 return NULL;
             }
         }
 
-        static vector<string> LayerTypeList()
+        static std::vector<std::string> LayerTypeList()
         {
             CreatorRegistry &registry = Registry();
-            vector<string> layer_types;
+            std::vector<std::string> layer_types;
             for (typename CreatorRegistry::iterator iter = registry.begin();
                  iter != registry.end(); ++iter)
             {
@@ -70,7 +70,7 @@ namespace fastnn
     class LayerRegisterer
     {
     public:
-        LayerRegisterer(const string &type,
+        LayerRegisterer(const std::string &type,
                         Layer * (*creator)(void))
         {
             LayerRegistry::AddCreator(type, creator);
@@ -82,9 +82,13 @@ namespace fastnn
         return LayerRegistry::CreateLayer(layer_type);
     }
 
+#define REGISTER_LAYER_CREATOR(type, creator) \
+    static LayerRegisterer g_creator_f_##type(#type, creator);
+
+
     void register_layer_creators()
     {
-        REGISTER_LAYER_CREATOR(Input, Input);
+        REGISTER_LAYER_CREATOR(Input, GetInputLayer);
 //        REGISTER_LAYER_CREATOR(Convolution, GetConvolutionLayer);
 //        REGISTER_LAYER_CREATOR(DepthwiseConvolution, GetDepthwiseConvolutionLayer);
 //        REGISTER_LAYER_CREATOR(BatchNorm, GetBatchNormLayer);
@@ -93,7 +97,7 @@ namespace fastnn
 //        REGISTER_LAYER_CREATOR(Dropout, GetDropoutLayer);
 //        REGISTER_LAYER_CREATOR(ReLU, GetReluLayer);
 //        REGISTER_LAYER_CREATOR(PReLU, GetPReluLayer);
-        REGISTER_LAYER_CREATOR(Scale, Scale);
+        REGISTER_LAYER_CREATOR(Scale, GetScaleLayer);
 //        REGISTER_LAYER_CREATOR(Slice, GetSliceLayer);
 //        REGISTER_LAYER_CREATOR(Pooling, GetPoolingLayer);
 //        REGISTER_LAYER_CREATOR(Eltwise, GetEltwiseLayer);
@@ -101,9 +105,6 @@ namespace fastnn
 //        REGISTER_LAYER_CREATOR(Softmax, GetSoftmaxLayer);
 //        REGISTER_LAYER_CREATOR(Filter, GetFilterLayer);
     }
-
-#define REGISTER_LAYER_CREATOR(type, creator) \
-    static LayerRegisterer g_creator_f_##type(#type, creator);
 
 }
 
