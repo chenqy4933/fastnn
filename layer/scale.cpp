@@ -10,6 +10,16 @@ Scale::Scale()
     support_inplace = true;
 }
 
+Scale::~Scale()
+{
+    if (scale_data!=NULL) {
+        fastnn_free(scale_data);
+    }
+    if (bias_data!=NULL) {
+        fastnn_free(bias_data);
+    }
+}
+
 int Scale::load_param(const ParamDict& pd)
 {
     scale_data_size = pd.get(0, 0);

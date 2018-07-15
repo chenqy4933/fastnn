@@ -39,15 +39,24 @@ public:
     //return 0 if success
     int Forward(void);
 
+    //all the steps before Forward and after loadmodel
+    int before_Forward(void);
+
     //optimize the whole network
     //return 0 if success
     //do the fuse of layer and so on
     int net_optimize();
 
+    int fuse_layer(Layer* baseLayer,Layer * next);
+
     //plan for the memory
     //return the size of memory to be used
     //plan for the memory
-    size_t net_memory_plan(int level);
+    int net_memory_plan(void);
+
+    int set_input_size(std::map<std::string,std::vector<int>> sizeOfinput);
+
+    int memory_alloc(void);
 
     std::map<std::string,Blob*> input;
     std::map<std::string,Blob*> output;
@@ -55,6 +64,10 @@ public:
     std::vector<Layer*> allLayer;
 
     std::vector<float*> allPtr;
+    float * conmom_ptr;
+    size_t comom_size;
+
+    bool organized=false;
 };
 
 class Engine

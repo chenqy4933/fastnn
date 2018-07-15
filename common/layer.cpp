@@ -29,7 +29,12 @@ int Layer::forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top
     return 0;
 }
 
-int Layer::infershape(const std::vector<Blob>& bottom_blobs)
+int Layer::infershape(void)
+{
+    return 0;
+}
+
+int Layer::updata_weight(Layer* netx)
 {
     return 0;
 }

@@ -10,6 +10,7 @@ namespace fastnn {
 class Scale : public Layer
 {
 public:
+    ~Scale();
     Scale();
 
     virtual int load_param(const ParamDict& pd);

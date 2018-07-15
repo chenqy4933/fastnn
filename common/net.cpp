@@ -14,6 +14,7 @@ namespace fastnn {
 
 Net::Net()
 {
+    register_layer_creators();
 }
 
 Net::~Net()
@@ -77,9 +78,7 @@ int Net::load_param(FILE* fp)
                 continue;
             }
             auto it=allBlob.find(bottom_name);
-            if(it!=allBlob.end())
-            //int bottom_blob_index = find_blob_index_by_name(bottom_name);
-            //if (bottom_blob_index == -1)
+            if(it==allBlob.end())
             {
                 printf("The model's layer is out of order!");
                 return -1;
@@ -194,7 +193,10 @@ int Net::load_model(const char* modelpath)
 
     return ret;
 }
-
+/************************************
+ *
+ * @return
+ */
 int Net::clear()
 {
     for(int i=0;i<allLayer.size();i++)
@@ -204,12 +206,231 @@ int Net::clear()
             delete allLayer[i];
         }
     }
+    for(int i=0;i<allPtr.size();i++)
+    {
+        if(allPtr[i]!=NULL)
+        {
+            fastnn_free(allPtr[i]);
+        }
+    }
     return 0;
 }
 
+/******************************
+ *
+ */
+
 int Net::organize_net(void)
 {
+    //Generate the grap
+    for(int i=0;i<allLayer.size();i++)
+    {
+        Layer * thisLayer=allLayer[i];
+        if(thisLayer!=NULL)                 //if the layer is NULL ,this layer is fused
+        {
+            thisLayer->nexts.clear();
+            for (int j = 0; j < thisLayer->tops.size(); j++)
+            {
+                Blob *top_blob = thisLayer->tops[j];
+                for (int k = 0; k < top_blob->consumer.size(); k++)
+                {
+                    thisLayer->nexts.push_back(top_blob->consumer[k]);
+                }
+            }
+        }
+    }
+    //find out the input blob
+    for(int i=0;i<allLayer.size();i++)
+    {
+        Layer * thisLayer=allLayer[i];
+        if(thisLayer!=NULL)                 //if the layer is NULL ,this layer is fused
+        {
+            if(thisLayer->bottoms.size()==0)
+            {
+                for(int j=0;j<thisLayer->tops.size();j++)
+                {
+                    Blob * top_blob=thisLayer->tops[j];
+                    input[top_blob->name]=top_blob;
+                }
+            }
+        }
+    }
+    //find out the out blob
+    for(int i=0;i<allLayer.size();i++)
+    {
+        Layer * thisLayer=allLayer[i];
+        if(thisLayer!=NULL)                 //if the layer is NULL ,this layer is fused
+        {
+            if(thisLayer->nexts.size()==0)
+            {
+                for(int j=0;j<thisLayer->tops.size();j++)
+                {
+                    Blob * top_blob=thisLayer->tops[j];
+                    output[top_blob->name]=top_blob;
+                }
+            }
+        }
+    }
+    organized=true;
     return 0;
+}
+/******************************
+ *
+ */
+int Net::net_optimize()
+{
+    if(organized)
+    {
+        for(int i=0;i<allLayer.size();i++)
+        {
+            Layer* thisLayer=allLayer[i];
+            Layer* next=thisLayer->nexts[0];
+            bool fuse=(thisLayer->type==std::string("Converlution"));
+            fuse =(fuse && (next->type==std::string("Scale") ||
+                    next->type==std::string("BatchNormal")||next->type==std::string("Relu")));
+            if(fuse)
+            {
+                if(!(thisLayer->bottoms.size()==1)&&(thisLayer->tops.size()==1))
+                {
+                    printf("Net is wrong!!!\n");
+                    return -100;
+                }
+                fuse_layer(thisLayer,next);
+                thisLayer->updata_weight(next);
+            }
+        }
+    }
+}
+/******************************
+ *
+ */
+int Net::fuse_layer(Layer* baseLayer,Layer * next)
+{
+    if(baseLayer!=NULL && next!=NULL)
+    {
+        if(baseLayer->tops[0]->consumer[0]!=next)
+        {
+            printf("Fuse_layer wrong!!!\n");
+            return -1;
+        }
+        next->tops[0]->producer=baseLayer;
+        baseLayer->tops[0]=next->tops[0];
+
+        auto it=allBlob.find(next->bottoms[0]->name);
+        allBlob.erase(it);
+        delete next->bottoms[0];                    //delete the fuse blob
+
+        for(int i=0;i<allLayer.size();i++)
+        {
+            if(allLayer[i]!=NULL && allLayer[i]==next)
+            {
+                allLayer[i]=NULL;
+            }
+        }
+        delete next;
+    }
+    return 0;
+}
+/******************************
+ *
+ */
+int Net::before_Forward(void)
+{
+    //first conduct net_optimize
+    int ret=0;
+    ret=net_optimize();
+    if(ret!=0)
+    {
+        printf("net_optimize wrong\n");
+        return -1;
+    }
+    //second conduct organize_net
+    ret=organize_net();
+    if(ret!=0)
+    {
+        printf("organize_net wrong\n");
+        return -1;
+    }
+    //third conduct memory_plan
+    ret=net_memory_plan();
+    if(ret!=0)
+    {
+        printf("net_memory_plan wrong\n");
+        return -1;
+    }
+    //forth conduct memory_alloc
+    ret=memory_alloc();
+    if(ret!=0)
+    {
+        printf("memory_alloc wrong\n");
+        return -1;
+    }
+    return 0;
+
+}
+
+int Net::set_input_size(std::map<std::string,std::vector<int>> sizeOfinput)
+{
+    int number=sizeOfinput.size();
+    if(number!=input.size())
+    {
+        printf("Input size in not right\n");
+        return -1;
+    }
+    else
+    {
+        for(auto iter = input.begin(); iter != input.end(); iter++)
+        {
+            Blob * input_blob=iter->second;
+            std::vector<int> shape=sizeOfinput[iter->first];
+            input_blob->setSize(shape);
+        }
+    }
+    return 0;
+}
+
+int Net::net_memory_plan()
+{
+
+    //Set the input blob size
+    //infershape of all the blob include pad
+    for(int i=0;i<allLayer.size();i++)
+    {
+        Layer* thisLayer=allLayer[i];
+        thisLayer->infershape();
+    }
+
+    int numberOfblob=allBlob.size();
+    if(numberOfblob<=0)
+    {
+        printf("Net is not load successfully\n");
+        return -1;
+    }
+    std::map<std::string,int> blob_reference;
+    //Init all the reference to 0
+    for(auto iter = allBlob.begin(); iter != allBlob.end(); iter++)
+    {
+        blob_reference[iter->first]=0;
+    }
+    //Get the reference of all the blob
+    for(int i=0;i<allLayer.size();i++)
+    {
+        Layer* thisLayer=allLayer[i];
+        for(int j=0;j<thisLayer->bottoms.size();j++)
+        {
+            Blob* thisBlob=thisLayer->bottoms[j];
+            blob_reference[thisBlob->name]+=1;
+        }
+    }
+    for(int i=0;i<allLayer.size();i++)
+    {
+        Layer* thisLayer=allLayer[i];
+        for(int j=0;j<thisLayer->tops.size();j++)
+        {
+            Blob* thisBlob=thisLayer->tops[j];
+            blob_reference[thisBlob->name]-=1;
+        }
+    }
 }
 
 } // namespace ncnn

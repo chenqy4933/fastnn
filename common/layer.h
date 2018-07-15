@@ -8,6 +8,7 @@
 #include "blob.h"
 #include "modelbin.h"
 #include "paramdict.h"
+#include "memoryAlloc.h"
 
 
 namespace fastnn {
@@ -29,13 +30,15 @@ public:
     // return 0 if success
     virtual int load_model(const ModelBin& mb);
 
+    virtual int updata_weight(Layer* netx);
+
 public:
     // support inplace inference
     bool support_inplace;
 
 public:
 
-    virtual int infershape(const std::vector<Blob>& bottom_blobs);
+    virtual int infershape(void);
     // implement inference
     // return 0 if success
     virtual int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const;

@@ -47,6 +47,7 @@ namespace fastnn {
         else
             padChanel=c;
         this->data=data_in;
+        size=w*h*padChanel;
     }
 
     int Blob::create(int w,int h,int c,std::string name)
@@ -60,16 +61,38 @@ namespace fastnn {
         else
             padChanel=c;
         data=fastnn_alloc(w*h*padChanel);
+        size=w*h*padChanel;
     }
 
-    int Blob::setData(Blob & blob, float* data_in)
+    int Blob::setData(float* data_in)
     {
         if(data_in!=NULL)
         {
-            blob.data=data_in;
+            this->data=data_in;
         }
         else
             return -1;
+        return 0;
+    }
+
+    int Blob::setSize(std::vector<int> size)
+    {
+        int dim=size.size();
+        if(dim!=3)
+        {
+            printf("set size is wrong!\n");
+            return -1;
+        }
+        else
+        {
+            channel=size[0];
+            height=size[1];
+            width=size[2];
+            if(channel>4)
+                padChanel=ROUNDUP4(channel);
+            else
+                padChanel=channel;
+        }
         return 0;
     }
 

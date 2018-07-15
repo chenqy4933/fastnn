@@ -26,7 +26,9 @@ public:
 
     int create(int w,int h,int c,std::string name=std::string("NULL"));
 
-    int setData(Blob & blob, float* data);
+    int setData(float* data);
+
+    int setSize(std::vector<int> size);
 
 
 public:
@@ -36,6 +38,8 @@ public:
     int padChanel;
     //the memory of the blob
     float* data;
+
+    size_t size;
     // blob name
     std::string name;
     std::vector<Layer*> consumer;
