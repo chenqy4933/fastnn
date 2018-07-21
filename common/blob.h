@@ -16,6 +16,8 @@ public:
     // empty
     Blob(){};
 
+    virtual ~Blob();
+
     Blob(std::string name);
 
     Blob(int w,int h,int c,std::string name);
@@ -44,6 +46,7 @@ public:
     std::string name;
     std::vector<Layer*> consumer;
     Layer* producer;
+    bool owner=false;
 };
 
 }

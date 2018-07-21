@@ -5,6 +5,15 @@ namespace fastnn {
 
 #define ROUNDUP4(x) (((x+3)>>2)<<2)
 
+    virtual Blob::~Blob()
+    {
+        if(owner==true)
+        {
+            fastnn_free(data);
+            data=NULL;
+        }
+    }
+
     inline Blob& Blob::operator=(const Blob& blob)
     {
         if (this == &blob)
@@ -62,6 +71,7 @@ namespace fastnn {
             padChanel=c;
         data=fastnn_alloc(w*h*padChanel);
         size=w*h*padChanel;
+        owner=true;
     }
 
     int Blob::setData(float* data_in)
@@ -93,6 +103,7 @@ namespace fastnn {
             else
                 padChanel=channel;
         }
+        this->size=height*width*padChanel;
         return 0;
     }
 

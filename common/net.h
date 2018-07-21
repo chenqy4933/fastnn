@@ -6,6 +6,9 @@
 #include <stdio.h>
 #include <vector>
 #include <map>
+#include <set>
+#include <stack>
+
 #include "blob.h"
 #include "layer.h"
 
@@ -31,6 +34,12 @@ public:
 
     // unload network structure and weight data
     int clear();
+
+    //clone the Net used the same weight but reallocate other computer blob
+    Net* clone();
+
+    //Init the net
+    int InitNet(std::map<std::string,std::vector<int>> inputSize);
 
     int organize_net(void);
     //Forward the net
@@ -63,20 +72,18 @@ public:
     std::map<std::string,Blob> allBlob;
     std::vector<Layer*> allLayer;
 
+    std::map<std::string,int> blob2ptr;
     std::vector<float*> allPtr;
     float * conmom_ptr;
     size_t comom_size;
 
+
     bool organized=false;
 };
 
-class Engine
+class NetEngine
 {
 public:
-    // enable light mode
-    // intermediate blob will be recycled when enabled
-    // enabled by default
-    void set_light_mode(bool enable);
 
     // set thread count for this extractor
     // this will overwrite the global setting
@@ -94,8 +101,6 @@ public:
 
 private:
     Net* net;
-    bool lightmode;     //in this model the memory is applied and deleted in runtime.
-    int num_threads;
 };
 
 } //

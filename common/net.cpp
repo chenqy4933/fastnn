@@ -222,36 +222,45 @@ int Net::clear()
 
 int Net::organize_net(void)
 {
-    //Generate the grap
+    //remove the deleted layer
+    int current=0;
+    for(int i=0;i<allLayer.size();i++) {
+        Layer *thisLayer = allLayer[i];
+        if (thisLayer != NULL)                 //if the layer is NULL ,this layer is fused
+        {
+            allLayer[current]=thisLayer;
+            current++;
+        }
+    }
+    allLayer.resize(current);
+    std::vector<Layer*> serialLayer;
+    //Generate the graph
     for(int i=0;i<allLayer.size();i++)
     {
         Layer * thisLayer=allLayer[i];
-        if(thisLayer!=NULL)                 //if the layer is NULL ,this layer is fused
+
+        thisLayer->nexts.clear();
+        for (int j = 0; j < thisLayer->tops.size(); j++)
         {
-            thisLayer->nexts.clear();
-            for (int j = 0; j < thisLayer->tops.size(); j++)
+            Blob *top_blob = thisLayer->tops[j];
+            for (int k = 0; k < top_blob->consumer.size(); k++)
             {
-                Blob *top_blob = thisLayer->tops[j];
-                for (int k = 0; k < top_blob->consumer.size(); k++)
-                {
-                    thisLayer->nexts.push_back(top_blob->consumer[k]);
-                }
+                thisLayer->nexts.push_back(top_blob->consumer[k]);
             }
         }
+
     }
     //find out the input blob
     for(int i=0;i<allLayer.size();i++)
     {
         Layer * thisLayer=allLayer[i];
-        if(thisLayer!=NULL)                 //if the layer is NULL ,this layer is fused
+
+        if(thisLayer->bottoms.size()==0)
         {
-            if(thisLayer->bottoms.size()==0)
+            for(int j=0;j<thisLayer->tops.size();j++)
             {
-                for(int j=0;j<thisLayer->tops.size();j++)
-                {
-                    Blob * top_blob=thisLayer->tops[j];
-                    input[top_blob->name]=top_blob;
-                }
+                Blob * top_blob=thisLayer->tops[j];
+                input[top_blob->name]=top_blob;
             }
         }
     }
@@ -259,19 +268,82 @@ int Net::organize_net(void)
     for(int i=0;i<allLayer.size();i++)
     {
         Layer * thisLayer=allLayer[i];
-        if(thisLayer!=NULL)                 //if the layer is NULL ,this layer is fused
+        if(thisLayer->nexts.size()==0)
         {
-            if(thisLayer->nexts.size()==0)
+            for(int j=0;j<thisLayer->tops.size();j++)
             {
-                for(int j=0;j<thisLayer->tops.size();j++)
-                {
-                    Blob * top_blob=thisLayer->tops[j];
-                    output[top_blob->name]=top_blob;
-                }
+                Blob * top_blob=thisLayer->tops[j];
+                output[top_blob->name]=top_blob;
             }
         }
     }
+    std::set<std::string> OKblob;
+    std::stack<Layer*> backLayer;
+    std::set<std::string> isExcuted;
+    for(auto iter=input.end();iter!=input.begin();iter--)
+    {
+        OKblob.insert(iter->first);
+        backLayer.push(iter->second->producer); //push the input layer to the stack
+    }
+    //conduct the DFS
+    while(!backLayer.empty())
+    {
+        Layer* thisLayer=backLayer.top();
+        //make sure the layer can process
+        {
+            bool excutable = true;
+            for (auto iter = thisLayer->bottoms.begin(); iter != thisLayer->bottoms.end(); iter++) {
+                if (OKblob.find((*iter)->name) == OKblob.end());
+                {
+                    excutable = false;
+                    break;
+                }
+            }
+            if (!excutable) {
+                backLayer.pop();
+                break;
+            }
+        }
+        //excute the layer
+        {
+            serialLayer.push_back(thisLayer);
+            for (int i = 0; i < thisLayer->tops.size(); i++)  //push all the top to the set
+            {
+                OKblob.insert(thisLayer->tops[i]->name);
+            }
+            isExcuted.insert(thisLayer->name);       //indict the layer is executed
+            backLayer.pop();
+        }
+        //push the next to the stack
+        for(auto iter=thisLayer->nexts.begin();iter!=thisLayer->nexts.end();iter++)
+        {
+            if(isExcuted.find((*iter)->name)==isExcuted.end())
+            {
+                backLayer.push(*iter);
+            }
+        }
+    }
+    //delete the no use layer
+    for(int i=0;i<allLayer.size();i++)
+    {
+        Layer* thisLayer=allLayer[i];
+        bool noUse=true;
+        for(int j=0;j<serialLayer.size();j++)
+        {
+            if(thisLayer->name==serialLayer[j]->name)
+            {
+                noUse=false;
+                break;
+            }
+        }
+        if(noUse)
+        {
+            delete(thisLayer);
+        }
+    }
+    allLayer=serialLayer;
     organized=true;
+
     return 0;
 }
 /******************************
@@ -388,17 +460,27 @@ int Net::set_input_size(std::map<std::string,std::vector<int>> sizeOfinput)
     }
     return 0;
 }
+int Net::InitNet(std::map<std::string,std::vector<int>> inputSize)
+{
+    int inputNum=inputSize.size();
+    for(auto iter=inputSize.begin();iter!=inputSize.end();iter++)
+    {
+        std::string name=iter->first;
+        Blob * inputblob=input[name];
+        inputblob->setSize(iter->second);
+    }
+    for(int i=0;i<allLayer.size();i++)
+    {
+        allLayer[i]->infershape();
+    }
+    return 0;
+}
 
 int Net::net_memory_plan()
 {
 
     //Set the input blob size
     //infershape of all the blob include pad
-    for(int i=0;i<allLayer.size();i++)
-    {
-        Layer* thisLayer=allLayer[i];
-        thisLayer->infershape();
-    }
 
     int numberOfblob=allBlob.size();
     if(numberOfblob<=0)
@@ -406,31 +488,153 @@ int Net::net_memory_plan()
         printf("Net is not load successfully\n");
         return -1;
     }
-    std::map<std::string,int> blob_reference;
+    std::map<std::string,int> blobReference;
     //Init all the reference to 0
     for(auto iter = allBlob.begin(); iter != allBlob.end(); iter++)
     {
-        blob_reference[iter->first]=0;
+        blobReference[iter->first]=0;
+        blob2ptr[iter->first]=-100;
     }
+
+    for(auto iter=input.begin();iter!=input.end();iter++)
+    {
+        blobReference[iter->first]=-1;     //if blobReference[i]==-1 ,it ptr is provide by user
+        blob2ptr[iter->first]=-1;
+    }
+    for(auto iter=output.begin();iter!=output.end();iter++)
+    {
+        blobReference[iter->first]=-1;    //if blobReference[i]==-1 ,it ptr is provide by user
+        blob2ptr[iter->first]=-1;
+    }
+
+    //the input and output provided by the user
     //Get the reference of all the blob
+
     for(int i=0;i<allLayer.size();i++)
     {
         Layer* thisLayer=allLayer[i];
         for(int j=0;j<thisLayer->bottoms.size();j++)
         {
             Blob* thisBlob=thisLayer->bottoms[j];
-            blob_reference[thisBlob->name]+=1;
+            blobReference[thisBlob->name]+=1;
         }
     }
-    for(int i=0;i<allLayer.size();i++)
+
+    //check weather all the blob is referenced
+    for(auto iter=blobReference.begin();iter!=blobReference.end();iter++)
     {
-        Layer* thisLayer=allLayer[i];
-        for(int j=0;j<thisLayer->tops.size();j++)
+        if(iter->second==0)
         {
-            Blob* thisBlob=thisLayer->tops[j];
-            blob_reference[thisBlob->name]-=1;
+            printf("ERRO!!! The %s blob is no referenced\n",iter->first.c_str());
+            return -1;
         }
     }
+
+    //crate the free blob pool
+    std::multimap<int,int> freepool;   // memory map from size--->index_ptr
+    std::vector<int> ptr_size_all;
+    std::map<std::string,int> blob2ptr_all;
+    int index_ptr=0;
+    if(organized)
+    {
+        int min_size=0;
+        float min_scale=0;
+        for(float time=0;time<6;time+=1)   //选择最优的一种内存分配方案
+        {
+            freepool.clear();
+            index_ptr=0;
+            float scale=0.5f+time*0.1f;
+            std::map<std::string,int> blob2ptr_temp=blob2ptr;
+            std::vector<int> ptr_size;
+            for (int i = 0; i < allLayer.size(); i++)
+            {
+                //
+                Layer* thisLayer=allLayer[i];
+
+                for(int j=0;j<thisLayer->tops.size();j++)
+                {
+                    //1. find the memory for the tops
+                    if(blob2ptr_temp[thisLayer->tops[j]->name]!=-1)  //not the input or output blob
+                    {
+                        if(thisLayer->support_inplace)
+                        {
+                            blob2ptr_temp[thisLayer->tops[j]->name]=blob2ptr_temp[thisLayer->bottoms[j]->name];
+                        }
+                        else  //get the blobptr from the freepool, if can't find then new it
+                        {
+                            Blob* top_blob=thisLayer->tops[j];
+                            int blob_size=top_blob->size;
+                            auto iter=freepool.lower_bound(blob_size);  //choose from biger
+                            if(iter!=freepool.end() && iter->first<=(int)(blob_size/scale))
+                            {
+                                blob2ptr_temp[top_blob->name]=iter->second;
+                                ptr_size[iter->second]=std::max(blob_size,iter->first);
+                                freepool.erase(iter);
+                                continue;
+                            }
+                            iter=freepool.lower_bound((int)(blob_size*scale)); //choose from smaller
+                            if(iter!=freepool.end())
+                            {
+                                blob2ptr_temp[top_blob->name]=iter->second;
+                                ptr_size[iter->second]=std::max(blob_size,iter->first);
+                                freepool.erase(iter);
+                                continue;
+                            }
+                            ptr_size.push_back(blob_size);     // create the memory block
+                            blob2ptr_temp[top_blob->name]=index_ptr;
+                            index_ptr++;
+                        }
+                    }
+                }
+
+
+                //2. collect the bottom blob the the freepool
+                if(!thisLayer->support_inplace)   // if layer support inplace then no need recircle ,because the memory is using.
+                {
+                    for(int j=0;j<thisLayer->bottoms.size();j++)
+                    {
+                        int bottom_index=blob2ptr_temp[thisLayer->bottoms[j]->name];
+                        if(bottom_index!=-1)  //not the input or output blob
+                        {
+                            bool isInPool=false;
+                            for(auto iter=freepool.begin();iter!=freepool.end();iter++)
+                            {
+                                if(iter->second==bottom_index)
+                                {
+                                    isInPool=true;
+                                    break;
+                                }
+                            }
+                            if(!isInPool)   // if not in pool
+                            {
+                                int size=ptr_size[bottom_index];
+                                freepool.insert(std::make_pair(size,bottom_index));
+                            }
+                        }
+                    }
+                }
+            }
+            int all_size=0;
+            for(int i=0;i<ptr_size.size();i++)
+            {
+                all_size+=ptr_size[i];
+            }
+            if(all_size<min_size)
+            {
+                min_size=all_size;
+                min_scale=scale;
+                blob2ptr_all=blob2ptr_temp;
+            }
+        }
+        int index=(min_scale-0.5f)*10.f;
+        blob2ptr=blob2ptr_all;
+    }
+    else
+    {
+        printf("Please organize the Net ahead\n");
+        return -1;
+    }
+    return 0;
 }
 
 } // namespace ncnn
