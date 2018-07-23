@@ -5,7 +5,7 @@ namespace fastnn {
 
 #define ROUNDUP4(x) (((x+3)>>2)<<2)
 
-    virtual Blob::~Blob()
+    Blob::~Blob()
     {
         if(owner==true)
         {
