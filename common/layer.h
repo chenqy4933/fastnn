@@ -32,13 +32,15 @@ public:
 
     virtual int updata_weight(Layer* netx);
 
+    virtual int init();
+
 public:
     // support inplace inference
     bool support_inplace;
 
 public:
 
-    virtual int infershape(void);
+    virtual int infershape();
     // implement inference
     // return 0 if success
     virtual int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const;

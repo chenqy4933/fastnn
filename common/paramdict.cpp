@@ -10,6 +10,10 @@ ParamDict::ParamDict()
 {
     clear();
 }
+ParamDict::~ParamDict()
+{
+    clear();
+}
 
 int ParamDict::get(int id, int def) const
 {
@@ -49,7 +53,8 @@ void ParamDict::clear()
     for (int i = 0; i < MAX_PARAM_COUNT; i++)
     {
         params[i].loaded = 0;
-        params[i].v = NULL;
+        if(params[i].v!=NULL)
+            fastnn_free(params[i].v);
     }
 }
 
@@ -90,7 +95,7 @@ int ParamDict::load_param(FILE* fp)
             int nscan = fscanf(fp, "%d", &len);
             if (nscan != 1)
             {
-                fprintf(stderr, "ParamDict read array length fail\n");
+                printf("ParamDict read array length fail\n");
                 return -1;
             }
 
@@ -102,7 +107,7 @@ int ParamDict::load_param(FILE* fp)
                 nscan = fscanf(fp, ",%15[^,\n ]", vstr);
                 if (nscan != 1)
                 {
-                    fprintf(stderr, "ParamDict read array element fail\n");
+                    printf("ParamDict read array element fail\n");
                     return -1;
                 }
 
@@ -120,7 +125,7 @@ int ParamDict::load_param(FILE* fp)
                 }
                 if (nscan != 1)
                 {
-                    fprintf(stderr, "ParamDict parse array element fail\n");
+                    printf("ParamDict parse array element fail\n");
                     return -1;
                 }
             }
@@ -131,7 +136,7 @@ int ParamDict::load_param(FILE* fp)
             int nscan = fscanf(fp, "%15s", vstr);
             if (nscan != 1)
             {
-                fprintf(stderr, "ParamDict read value fail\n");
+                printf("ParamDict read value fail\n");
                 return -1;
             }
 

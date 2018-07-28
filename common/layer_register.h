@@ -11,6 +11,12 @@
 //////////////////////////////all support layer
 #include"input.h"
 #include"scale.h"
+#include "concat.h"
+#include"convolution.h"
+#include"dropout.h"
+#include "pooling.h"
+#include "relu.h"
+#include "softmax.h"
 /////////////////
 
 namespace fastnn
@@ -89,20 +95,20 @@ namespace fastnn
     void register_layer_creators()
     {
         REGISTER_LAYER_CREATOR(Input, GetInputLayer);
-//        REGISTER_LAYER_CREATOR(Convolution, GetConvolutionLayer);
+        REGISTER_LAYER_CREATOR(Convolution, GetConvolutionLayer);
 //        REGISTER_LAYER_CREATOR(DepthwiseConvolution, GetDepthwiseConvolutionLayer);
 //        REGISTER_LAYER_CREATOR(BatchNorm, GetBatchNormLayer);
 //        REGISTER_LAYER_CREATOR(LRN, GetLRNLayer);
-//        REGISTER_LAYER_CREATOR(Concat, GetConcatLayer);
-//        REGISTER_LAYER_CREATOR(Dropout, GetDropoutLayer);
-//        REGISTER_LAYER_CREATOR(ReLU, GetReluLayer);
+        REGISTER_LAYER_CREATOR(Concat, GetConcatLayer);
+        REGISTER_LAYER_CREATOR(Dropout, GetDropoutLayer);
+        REGISTER_LAYER_CREATOR(ReLU, GetReluLayer);
 //        REGISTER_LAYER_CREATOR(PReLU, GetPReluLayer);
         REGISTER_LAYER_CREATOR(Scale, GetScaleLayer);
 //        REGISTER_LAYER_CREATOR(Slice, GetSliceLayer);
-//        REGISTER_LAYER_CREATOR(Pooling, GetPoolingLayer);
+        REGISTER_LAYER_CREATOR(Pooling, GetPoolingLayer);
 //        REGISTER_LAYER_CREATOR(Eltwise, GetEltwiseLayer);
 //        REGISTER_LAYER_CREATOR(InnerProduct, GetInnerProductLayer);
-//        REGISTER_LAYER_CREATOR(Softmax, GetSoftmaxLayer);
+        REGISTER_LAYER_CREATOR(Softmax, GetSoftmaxLayer);
 //        REGISTER_LAYER_CREATOR(Filter, GetFilterLayer);
     }
 

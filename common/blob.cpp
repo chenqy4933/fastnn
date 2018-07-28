@@ -24,7 +24,14 @@ namespace fastnn {
         height=blob.height;
         channel=blob.channel;
         padChanel=blob.padChanel;
+        data=blob.data;
+        owner=blob.owner;
         return *this;
+    }
+
+    int inline Blob::set_ower()
+    {
+        owner=true;
     }
 
     Blob::Blob(std::string name)
@@ -32,7 +39,7 @@ namespace fastnn {
         name=name;
     }
 
-    Blob::Blob(int w,int h,int c,std::string name)
+    Blob::Blob(int h,int w,int c,std::string name)
     {
         name=name;
         width=w;
@@ -45,7 +52,7 @@ namespace fastnn {
 
     }
 
-    Blob::Blob(int w,int h,int c,std::string name,float* data_in)
+    Blob::Blob(int h,int w,int c,std::string name,float* data_in)
     {
         name=name;
         width=w;
@@ -59,7 +66,7 @@ namespace fastnn {
         size=w*h*padChanel;
     }
 
-    int Blob::create(int w,int h,int c,std::string name)
+    int Blob::create(int h,int w,int c,std::string name)
     {
         name=name;
         width=w;
@@ -85,26 +92,57 @@ namespace fastnn {
         return 0;
     }
 
-    int Blob::setSize(std::vector<int> size)
+    int Blob::setSize( std::vector<int> size)
     {
-        int dim=size.size();
-        if(dim!=3)
+        if(size.size() !=4)
         {
-            printf("set size is wrong!\n");
-            return -1;
+            channel = size[2];
+            width = size[1];
+            height = size[0];
+            if (channel > 4)
+                padChanel = ROUNDUP4(channel);
+            else
+                padChanel = channel;
+
+            this->size = height * width * padChanel;
+            return 0;
         }
+        return -1;
+    }
+
+    int Blob::setSize(int *size)
+    {
+        channel=size[2];
+        width=size[1];
+        height=size[0];
+        if(channel>4)
+            padChanel=ROUNDUP4(channel);
         else
+            padChanel=channel;
+
+        this->size=height*width*padChanel;
+        return 0;
+    }
+
+    int Blob::get_blob_shape(int *ptr)
+    {
+        if(ptr!=NULL)
         {
-            channel=size[0];
-            height=size[1];
-            width=size[2];
+            ptr[0]=1;
+            ptr[1]=height;
+            ptr[2]=width;
+            ptr[3]=channel;
+
             if(channel>4)
                 padChanel=ROUNDUP4(channel);
             else
                 padChanel=channel;
+            return 0;
         }
-        this->size=height*width*padChanel;
-        return 0;
+        else
+        {
+            return -1;
+        }
     }
 
 } // namespace fastnn

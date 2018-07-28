@@ -11,8 +11,11 @@
 
 #include "blob.h"
 #include "layer.h"
+#include "layer/input.h"
 
 namespace fastnn {
+
+class NetEngine;
 
 class Net
 {
@@ -38,9 +41,6 @@ public:
     //clone the Net used the same weight but reallocate other computer blob
     Net* clone();
 
-    //Init the net
-    int InitNet(std::map<std::string,std::vector<int>> inputSize);
-
     int organize_net(void);
     //Forward the net
 
@@ -49,7 +49,7 @@ public:
     int Forward(void);
 
     //all the steps before Forward and after loadmodel
-    int before_Forward(void);
+    int InitNet(void);
 
     //optimize the whole network
     //return 0 if success
@@ -73,34 +73,44 @@ public:
     std::vector<Layer*> allLayer;
 
     std::map<std::string,int> blob2ptr;
+    std::vector<int> ptrSize;
     std::vector<float*> allPtr;
+
     float * conmom_ptr;
     size_t comom_size;
 
-
     bool organized=false;
+
+    friend class NetEngine;
 };
 
 class NetEngine
 {
 public:
 
-    // set thread count for this extractor
-    // this will overwrite the global setting
-    // default count is system depended
-    void set_num_threads(int num_threads);
+    NetEngine(const char* param_path,const char* model_path);
 
+    ~NetEngine();
+    int init(void);
 
+    int forward(void);
+
+    int  get_input_shape(int *ptr, const char* name);
+
+    int set_input_shape(int *ptr,const char* name);
     // set input by blob name
-    // return 0 if success
-    int input(const char* blob_name, const float * data);
+    // return 0 if successs
+    int input(const char* blob_name, Blob& in_blob);
 
     // get result by blob name
     // return 0 if success
-    int extract(const char* blob_name, float * data );
+    int output(const char* blob_name, Blob& out_blob);
 
 private:
     Net* net;
+    bool inited=false;
+    std::map<std::string,std::vector<int>> inputsize;
+
 };
 
 } //

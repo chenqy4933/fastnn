@@ -9,6 +9,7 @@ namespace fastnn {
 
 class Input : public Layer
 {
+
 public:
     Input();
 

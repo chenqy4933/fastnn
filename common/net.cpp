@@ -199,6 +199,10 @@ int Net::load_model(const char* modelpath)
  */
 int Net::clear()
 {
+    if(conmom_ptr!=NULL)
+    {
+        fastnn_free(conmom_ptr);
+    }
     for(int i=0;i<allLayer.size();i++)
     {
         if(allLayer[i]!=NULL)
@@ -406,10 +410,16 @@ int Net::fuse_layer(Layer* baseLayer,Layer * next)
 /******************************
  *
  */
-int Net::before_Forward(void)
+int Net::InitNet(void)
 {
     //first conduct net_optimize
     int ret=0;
+    ret=organize_net();
+    if(ret!=0)
+    {
+        printf("organize_net first wrong\n");
+        return -1;
+    }
     ret=net_optimize();
     if(ret!=0)
     {
@@ -420,7 +430,7 @@ int Net::before_Forward(void)
     ret=organize_net();
     if(ret!=0)
     {
-        printf("organize_net wrong\n");
+        printf("organize_net second wrong\n");
         return -1;
     }
     //third conduct memory_plan
@@ -444,10 +454,20 @@ int Net::before_Forward(void)
 int Net::set_input_size(std::map<std::string,std::vector<int>> sizeOfinput)
 {
     int number=sizeOfinput.size();
+    // if the number is not equal the input size ,use default size
     if(number!=input.size())
     {
-        printf("Input size in not right\n");
-        return -1;
+        for(auto iter = input.begin(); iter != input.end(); iter++)
+        {
+            Blob * input_blob=iter->second;
+            Layer* input_layer=input_blob->producer;
+            std::vector<int> shape(4);
+            shape[0]=1;
+            shape[1]= static_cast<Input*>(input_layer)->h;
+            shape[2]= static_cast<Input*>(input_layer)->w;
+            shape[3]= static_cast<Input*>(input_layer)->c;
+            input_blob->setSize(shape);
+        }
     }
     else
     {
@@ -460,27 +480,23 @@ int Net::set_input_size(std::map<std::string,std::vector<int>> sizeOfinput)
     }
     return 0;
 }
-int Net::InitNet(std::map<std::string,std::vector<int>> inputSize)
-{
-    int inputNum=inputSize.size();
-    for(auto iter=inputSize.begin();iter!=inputSize.end();iter++)
-    {
-        std::string name=iter->first;
-        Blob * inputblob=input[name];
-        inputblob->setSize(iter->second);
-    }
-    for(int i=0;i<allLayer.size();i++)
-    {
-        allLayer[i]->infershape();
-    }
-    return 0;
-}
 
 int Net::net_memory_plan()
 {
 
     //Set the input blob size
     //infershape of all the blob include pad
+    // infershape return the temp memory it used
+    int max_temp_size=0;
+    for(int i=0;i<allLayer.size();i++)
+    {
+        int temp_size=allLayer[i]->infershape();
+        if(temp_size>max_temp_size)
+            max_temp_size=temp_size;
+    }
+    //allocate the temp memory
+    conmom_ptr=fastnn_alloc(max_temp_size);
+    comom_size=max_temp_size;
 
     int numberOfblob=allBlob.size();
     if(numberOfblob<=0)
@@ -501,11 +517,11 @@ int Net::net_memory_plan()
         blobReference[iter->first]=-1;     //if blobReference[i]==-1 ,it ptr is provide by user
         blob2ptr[iter->first]=-1;
     }
-    for(auto iter=output.begin();iter!=output.end();iter++)
-    {
-        blobReference[iter->first]=-1;    //if blobReference[i]==-1 ,it ptr is provide by user
-        blob2ptr[iter->first]=-1;
-    }
+//    for(auto iter=output.begin();iter!=output.end();iter++)
+//    {
+//        blobReference[iter->first]=-1;    //if blobReference[i]==-1 ,it ptr is provide by user
+//        blob2ptr[iter->first]=-1;
+//    }
 
     //the input and output provided by the user
     //Get the reference of all the blob
@@ -586,9 +602,7 @@ int Net::net_memory_plan()
                         }
                     }
                 }
-
-
-                //2. collect the bottom blob the the freepool
+                //2. collect the bottom blob to the freepool
                 if(!thisLayer->support_inplace)   // if layer support inplace then no need recircle ,because the memory is using.
                 {
                     for(int j=0;j<thisLayer->bottoms.size();j++)
@@ -624,10 +638,12 @@ int Net::net_memory_plan()
                 min_size=all_size;
                 min_scale=scale;
                 blob2ptr_all=blob2ptr_temp;
+                ptr_size_all=ptr_size;
             }
         }
         int index=(min_scale-0.5f)*10.f;
         blob2ptr=blob2ptr_all;
+        ptrSize=ptr_size_all;
     }
     else
     {
@@ -635,6 +651,197 @@ int Net::net_memory_plan()
         return -1;
     }
     return 0;
+}
+
+int Net::memory_alloc(void)
+{
+    //1. alloc all the memory and store it in the allPtr
+    if(blob2ptr.size()>0 && ptrSize.size()>0)   // alloc all the memory of blob
+    {
+        int nNumber_ptr=ptrSize.size();
+        allPtr.resize(nNumber_ptr);
+        for(int i=0;i<nNumber_ptr;i++)
+        {
+            float* ptr=fastnn_alloc(ptrSize[i]);
+            allPtr[i]=ptr;
+        }
+    }
+    else
+    {
+        printf("Memory plan is not right\n");
+        return -1;
+    }
+    //2. assign the ptr to all the blob
+    for(auto iter=allBlob.begin();iter!=allBlob.end();iter++)
+    {
+        int ptr_index=blob2ptr[iter->first];
+        if(allPtr.size()>ptr_index)
+        {
+            iter->second.setData(allPtr[ptr_index]);
+        }
+        else
+        {
+            printf("Memory plan is erro!!\n");
+        }
+    }
+    return 0;
+}
+
+
+NetEngine::NetEngine(const char *param_path, const char *model_path)
+{
+    net=new Net();
+    if(NULL==net)
+    {
+        printf("Net is not created!\n");
+        return;
+    }
+    else
+    {
+        if(net->load_param(param_path)!=0)
+        {
+            printf("Net load_param error\n");
+            net->clear();
+            return;
+        }
+        if(net->load_model(model_path)!=0)
+        {
+            printf("Net load_param error\n");
+            net->clear();
+            return;
+        }
+    }
+}
+
+int NetEngine::set_input_shape(int *ptr, const char *name)
+{
+    if(ptr!=NULL && name!=NULL && net!=NULL)
+    {
+        if(net->input.find(name)!=net->input.end())
+        {
+            std::vector<int> shape(4);
+            shape[0]=ptr[0];
+            shape[1]=ptr[1];
+            shape[2]=ptr[2];
+            shape[3]=ptr[3];
+            inputsize[name]=shape;
+        }
+        else
+        {
+            printf("Net dose not have the input blob %s\n",name);
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int NetEngine::init()
+{
+    if(net!=NULL)
+    {
+        inited=true;
+        int ret=0;
+        //1. set the input of the net;
+        ret=net->set_input_size(inputsize);
+        if(ret!=0)
+        {
+            printf("set_input_size error\n");
+            net->clear();
+            return -1;
+        }
+        //2. init the Net
+        ret=net->InitNet();
+        if(ret!=0)
+        {
+            printf("InitNet error\n");
+            net->clear();
+            return -1;
+        }
+    }
+    else
+    {
+        printf("Net is not created!\n");
+        return -1;
+    }
+    return 0;
+
+}
+
+int NetEngine::get_input_shape(int *ptr, const char *name)
+{
+    if(ptr!=NULL && name!=NULL && net!=NULL)
+    {
+        if(net->input.find(name)!=net->input.end())
+        {
+            Blob *input_blob = net->input[name];
+            Layer *input_layer = input_blob->producer;
+            ptr[0] = 1;
+            ptr[1] = static_cast<Input *>(input_layer)->h;
+            ptr[2] = static_cast<Input *>(input_layer)->w;
+            ptr[3] = static_cast<Input *>(input_layer)->c;
+            return 0;
+        }
+        else
+        {
+            printf("Net dose not have the input blob %s\n",name);
+            return -1;
+        }
+    }
+    return -1;
+}
+
+int NetEngine::forward()
+{
+    if(net!=NULL)
+    {
+        if(net->Forward())
+        {
+            printf("Forward error %s\n");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+// the return blob data must to be processed before the net is delete
+int NetEngine::output(const char* blob_name, Blob& out_blob)
+{
+    if(net!=NULL)
+    {
+        if (blob_name != NULL)
+        {
+            if (net->output.find(blob_name) != net->output.end())
+            {
+                out_blob=*(net->output[blob_name]);
+
+                return 0;
+            }
+            else
+            {
+                printf("Net dose not have the output blob %s\n",blob_name);
+                return -1;
+            }
+        }
+        else
+        {
+            printf("blob name==NULL \n");
+            return -1;
+        }
+    }
+    else
+    {
+        printf("Net is not created!\n");
+        return -1;
+    }
+    return -1;
+}
+
+NetEngine::~NetEngine()
+{
+    if(net!=NULL)
+    {
+        delete(net);
+    }
 }
 
 } // namespace ncnn

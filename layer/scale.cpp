@@ -49,6 +49,7 @@ int Scale::load_model(const ModelBin& mb)
     return 0;
 }
 
+
 int Scale::forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const
 {
 

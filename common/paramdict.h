@@ -16,6 +16,7 @@ class ParamDict
 public:
     // empty
     ParamDict();
+    ~ParamDict();
 
     // get int
     int get(int id, int def) const;
