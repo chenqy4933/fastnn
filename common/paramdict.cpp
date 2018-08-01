@@ -8,7 +8,11 @@ namespace fastnn {
 
 ParamDict::ParamDict()
 {
-    clear();
+    for (int i = 0; i < MAX_PARAM_COUNT; i++)
+    {
+        params[i].loaded = 0;
+    }
+
 }
 ParamDict::~ParamDict()
 {

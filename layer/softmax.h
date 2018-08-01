@@ -18,9 +18,9 @@ public:
 
     virtual int load_param(const ParamDict& pd) override ;
 
-    virtual int load_model(const ModelBin& mb)override;
+    virtual int load_model(const ModelBin& mb) override {return 0;};
 
-    int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const override;
+    int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const override{return 0;};
 
 public:
     int axis;

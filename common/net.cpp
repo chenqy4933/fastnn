@@ -284,7 +284,7 @@ int Net::organize_net(void)
     std::set<std::string> OKblob;
     std::stack<Layer*> backLayer;
     std::set<std::string> isExcuted;
-    for(auto iter=input.end();iter!=input.begin();iter--)
+    for(auto iter=input.begin();iter!=input.end();iter++)
     {
         OKblob.insert(iter->first);
         backLayer.push(iter->second->producer); //push the input layer to the stack
@@ -687,6 +687,14 @@ int Net::memory_alloc(void)
     return 0;
 }
 
+int Net::Forward()
+{
+    for(int i=0;i<allLayer.size();i++)
+    {
+//         allLayer[i]->forward();
+    }
+}
+
 
 NetEngine::NetEngine(const char *param_path, const char *model_path)
 {
@@ -741,6 +749,14 @@ int NetEngine::init()
     {
         inited=true;
         int ret=0;
+        //0. Organize the Net
+        ret=net->organize_net();
+        if(ret!=0)
+        {
+            printf("organize_net error\n");
+            net->clear();
+            return -1;
+        }
         //1. set the input of the net;
         ret=net->set_input_size(inputsize);
         if(ret!=0)
@@ -801,6 +817,11 @@ int NetEngine::forward()
         }
     }
     return 0;
+}
+
+int NetEngine::input(const char* blob_name, Blob& in_blob)
+{
+    
 }
 
 // the return blob data must to be processed before the net is delete

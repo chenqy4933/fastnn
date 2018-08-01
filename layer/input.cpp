@@ -35,7 +35,7 @@ int Input::infershape()
     }
     return 0;
 }
-int Input::forward(const std::vector<Blob> bottoms,std::vector<Blob> tops) const
+int Input::forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const
 {
     return 0;
 }

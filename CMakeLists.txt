@@ -14,8 +14,12 @@ message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 
 cmake_minimum_required(VERSION 2.8.10)
 
+set(CMAKE_BUILD_TYPE debug)
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
+else()
+    set(CMAKE_BUILD_TYPE debug CACHE STRING "Choose the type of build" FORCE)
 endif()
 
 project(fastnn)
@@ -37,11 +41,11 @@ add_definitions(-fvisibility=hidden -fvisibility-inlines-hidden)
 if(ANDROID)
     # disable shared library on android
     set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
 elseif(IOS)
     # disable shared library on xcode ios
     set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
 endif()
 
 ##############################################
@@ -72,6 +76,9 @@ install(FILES
         common/memoryAlloc.h
         common/net.h
         common/layer.h
+        common/modelbin.h
+        common/paramdict.h
+
         DESTINATION include
         )
 #add_subdirectory(nnfunc)

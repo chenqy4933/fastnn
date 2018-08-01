@@ -44,7 +44,7 @@ protected:
     {
         int loaded;
         union { int i; float f; };
-        float* v;
+        float* v=NULL;
     } params[MAX_PARAM_COUNT];
 };
 

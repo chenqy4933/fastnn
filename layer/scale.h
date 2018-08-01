@@ -13,11 +13,11 @@ public:
     ~Scale();
     Scale();
 
-    virtual int load_param(const ParamDict& pd);
+    virtual int load_param(const ParamDict& pd) override;
 
-    virtual int load_model(const ModelBin& mb);
+    virtual int load_model(const ModelBin& mb) override;
 
-    int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const;
+    int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const override;
 
 public:
     // param

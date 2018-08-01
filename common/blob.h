@@ -24,7 +24,7 @@ public:
 
     Blob(int h,int w,int c,std::string name,float* data);
 
-    Blob& operator=(const Blob& blob);
+    Blob& operator=( Blob& blob);
 
     int create(int h,int w,int c,std::string name=std::string("NULL"));
 

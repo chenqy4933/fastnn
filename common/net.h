@@ -76,8 +76,8 @@ public:
     std::vector<int> ptrSize;
     std::vector<float*> allPtr;
 
-    float * conmom_ptr;
-    size_t comom_size;
+    float * conmom_ptr=NULL;
+    size_t comom_size=0;
 
     bool organized=false;
 

@@ -14,7 +14,7 @@ namespace fastnn {
         }
     }
 
-    inline Blob& Blob::operator=(const Blob& blob)
+    Blob& Blob::operator=( Blob& blob)
     {
         if (this == &blob)
             return *this;

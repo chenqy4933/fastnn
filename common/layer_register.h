@@ -9,14 +9,15 @@
 #include <string>
 
 //////////////////////////////all support layer
-#include"input.h"
-#include"scale.h"
-#include "concat.h"
-#include"convolution.h"
-#include"dropout.h"
-#include "pooling.h"
-#include "relu.h"
-#include "softmax.h"
+#include"layer/input.h"
+#include"layer/scale.h"
+#include"layer/concat.h"
+#include"layer/convolution.h"
+#include"layer/dropout.h"
+#include"layer/pooling.h"
+#include"layer/relu.h"
+#include"layer/softmax.h"
+#include "layer/split.h"
 /////////////////
 
 namespace fastnn
@@ -104,6 +105,7 @@ namespace fastnn
         REGISTER_LAYER_CREATOR(ReLU, GetReluLayer);
 //        REGISTER_LAYER_CREATOR(PReLU, GetPReluLayer);
         REGISTER_LAYER_CREATOR(Scale, GetScaleLayer);
+        REGISTER_LAYER_CREATOR(Split, GetSplitLayer);
 //        REGISTER_LAYER_CREATOR(Slice, GetSliceLayer);
         REGISTER_LAYER_CREATOR(Pooling, GetPoolingLayer);
 //        REGISTER_LAYER_CREATOR(Eltwise, GetEltwiseLayer);
