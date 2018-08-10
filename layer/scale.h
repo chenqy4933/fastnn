@@ -10,14 +10,14 @@ namespace fastnn {
 class Scale : public Layer
 {
 public:
-    ~Scale();
     Scale();
+    ~Scale();
 
     virtual int load_param(const ParamDict& pd) override;
 
     virtual int load_model(const ModelBin& mb) override;
 
-    int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const override;
+    int forward() const override;
 
 public:
     // param
@@ -25,8 +25,8 @@ public:
     int bias_term;
 
     // model
-    float* scale_data;
-    float* bias_data;
+    float* scale_data=NULL;
+    float* bias_data=NULL;
 };
 
 Layer *GetScaleLayer()

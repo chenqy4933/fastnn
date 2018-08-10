@@ -12,16 +12,16 @@ namespace fastnn {
 class Concat : public Layer {
 
 public:
-    ~Concat(){};
-    Concat(){};
+    Concat();
 
-    virtual int load_param(const ParamDict& pd) override{return 0;};
+    virtual int load_param(const ParamDict& pd) override;
 
-    virtual int load_model(const ModelBin& mb) override{return 0;};
+    virtual int infershape() override ;
 
-    virtual int infershape() override {return 0;};
+    int forward() const override;
 
-    int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const override{return 0;};
+public:
+    int axis=0;
 
 };
 

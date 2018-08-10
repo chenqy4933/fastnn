@@ -12,16 +12,16 @@ namespace fastnn {
 class Relu :public Layer{
 
 public:
-    ~Relu(){};
-    Relu(){};
 
-    virtual int load_param(const ParamDict& pd) override{return 0;};
+    Relu();
 
-    virtual int load_model(const ModelBin& mb) override{return 0;};
-
-    int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const override{return 0;};
+    virtual int load_param(const ParamDict& pd) override;
 
 
+    int forward() const override;
+
+public:
+    float slope;
 };
 
 Layer *GetReluLayer() {

@@ -27,15 +27,16 @@ int Input::infershape()
     }
     else
     {
-        std::vector<int> shape(3);
-        shape[0]=w;
+        std::vector<int> shape(4);
+        shape[0]=1;
         shape[1]=h;
-        shape[2]=c;
+        shape[2]=w;
+        shape[3]=c;
         tops[0]->setSize(shape);
     }
     return 0;
 }
-int Input::forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const
+int Input::forward() const
 {
     return 0;
 }

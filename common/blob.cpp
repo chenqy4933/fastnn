@@ -3,14 +3,13 @@
 
 namespace fastnn {
 
-#define ROUNDUP4(x) (((x+3)>>2)<<2)
 
     Blob::~Blob()
     {
         if(owner==true)
         {
-            fastnn_free(data);
-            data=NULL;
+            fastnn_free(data_ptr);
+            data_ptr=NULL;
         }
     }
 
@@ -18,66 +17,81 @@ namespace fastnn {
     {
         if (this == &blob)
             return *this;
-
         name=blob.name;
-        width=blob.width;
-        height=blob.height;
-        channel=blob.channel;
-        padChanel=blob.padChanel;
-        data=blob.data;
+        w=blob.w;
+        h=blob.h;
+        c=blob.c;
+        padc=blob.padc;
+        data_ptr=blob.data_ptr;
         owner=blob.owner;
+
+        size=blob.size;
+        consumer=blob.consumer;
+        producer=blob.producer;
+        owner=blob.owner;
+
+        pad_up=blob.pad_up;
+        pad_down=blob.pad_down;
+        pad_left=blob.pad_left;
+        pad_right=blob.pad_right;
         return *this;
     }
 
     int inline Blob::set_ower()
     {
         owner=true;
+        return 0;
     }
 
     Blob::Blob(std::string name)
     {
-        name=name;
+        this->name=name;
     }
 
-    Blob::Blob(int h,int w,int c,std::string name)
+    Blob::Blob(int height,int width,int channel,std::string name)
     {
         name=name;
-        width=w;
-        height=h;
-        channel=c;
-        if(c>4)
-            padChanel=ROUNDUP4(c);
-        else
-            padChanel=c;
 
+        h=height;
+        w=width;
+        c=channel;
+
+        if(c>4)
+            padc=ROUNDUP4(c);
+        else
+            padc=c;
+
+        size=(w+pad_left+pad_right)*(h+pad_up+pad_down)*padc;
     }
 
-    Blob::Blob(int h,int w,int c,std::string name,float* data_in)
+    Blob::Blob(int height,int width,int channel,std::string name,float* data_in)
     {
         name=name;
-        width=w;
-        height=h;
-        channel=c;
+
+        h=height;
+        w=width;
+        c=channel;
         if(c>4)
-            padChanel=ROUNDUP4(c);
+            padc=ROUNDUP4(c);
         else
-            padChanel=c;
-        this->data=data_in;
-        size=w*h*padChanel;
+            padc=c;
+        this->data_ptr=data_in;
+        size=(w+pad_left+pad_right)*(h+pad_up+pad_down)*padc;
     }
 
-    int Blob::create(int h,int w,int c,std::string name)
+    int Blob::create(int height,int width,int channel,std::string name)
     {
         name=name;
-        width=w;
-        height=h;
-        channel=c;
+        h=height;
+        w=width;
+        c=channel;
         if(c>4)
-            padChanel=ROUNDUP4(c);
+            padc=ROUNDUP4(c);
         else
-            padChanel=c;
-        data=fastnn_alloc(w*h*padChanel);
-        size=w*h*padChanel;
+            padc=c;
+        data_ptr=fastnn_alloc(w*h*padc* sizeof(float));
+
+        size=(w+pad_left+pad_right)*(h+pad_up+pad_down)*padc;
         owner=true;
     }
 
@@ -85,7 +99,8 @@ namespace fastnn {
     {
         if(data_in!=NULL)
         {
-            this->data=data_in;
+            this->data_ptr=data_in;
+            size=w*h*padc;
         }
         else
             return -1;
@@ -94,17 +109,17 @@ namespace fastnn {
 
     int Blob::setSize( std::vector<int> size)
     {
-        if(size.size() !=4)
+        if(size.size() ==4)
         {
-            channel = size[2];
-            width = size[1];
-            height = size[0];
-            if (channel > 4)
-                padChanel = ROUNDUP4(channel);
+            c = size[3];
+            w = size[2];
+            h = size[1];
+            if (c > 4)
+                padc = ROUNDUP4(c);
             else
-                padChanel = channel;
+                padc = c;
 
-            this->size = height * width * padChanel;
+            this->size=(w+pad_left+pad_right)*(h+pad_up+pad_down)*padc;
             return 0;
         }
         return -1;
@@ -112,15 +127,31 @@ namespace fastnn {
 
     int Blob::setSize(int *size)
     {
-        channel=size[2];
-        width=size[1];
-        height=size[0];
-        if(channel>4)
-            padChanel=ROUNDUP4(channel);
-        else
-            padChanel=channel;
+        if(size!=NULL)
+        {
+            c = size[3];
+            w = size[2];
+            h = size[1];
+            if (c > 4)
+                padc = ROUNDUP4(c);
+            else
+                padc = c;
+        }
+        this->size=(w+pad_left+pad_right)*(h+pad_up+pad_down)*padc;
+        return 0;
+    }
 
-        this->size=height*width*padChanel;
+    int Blob::setSize(int height,int width,int channel)
+    {
+        h=height;
+        w=width;
+        c=channel;
+        if(c>4)
+            padc=ROUNDUP4(c);
+        else
+            padc=c;
+
+        this->size=(w+pad_left+pad_right)*(h+pad_up+pad_down)*padc;
         return 0;
     }
 
@@ -129,20 +160,66 @@ namespace fastnn {
         if(ptr!=NULL)
         {
             ptr[0]=1;
-            ptr[1]=height;
-            ptr[2]=width;
-            ptr[3]=channel;
+            ptr[1]=h;
+            ptr[2]=w;
+            ptr[3]=c;
 
-            if(channel>4)
-                padChanel=ROUNDUP4(channel);
+            if(c>4)
+                padc=ROUNDUP4(c);
             else
-                padChanel=channel;
+                padc=c;
             return 0;
         }
         else
         {
             return -1;
         }
+    }
+
+    int Blob::dim()
+    {
+        int dim=3;
+        if(c<=1)
+        {
+            dim-=1;
+            if(h<=1)
+            {
+                dim-=1;
+                if(w<=1)
+                {
+                    dim=0;
+                }
+            }
+
+        }
+        return dim;
+    }
+
+    float* Blob::data()
+    {
+        if(size>0 && data_ptr!=NULL)
+        {
+            return this->data_ptr;
+        }else
+        {
+            return 0;
+        }
+    }
+
+    int Blob::set_padparam(int up,int down,int left,int right)
+    {
+        pad_up=up;
+        pad_down=down;
+        pad_left=left;
+        pad_right=right;
+
+        this->size=(w+pad_left+pad_right)*(h+pad_up+pad_down)*padc;
+        return 0;
+    }
+
+    int Blob::set_pad_zero()
+    {
+        return 0;
     }
 
 } // namespace fastnn

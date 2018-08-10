@@ -17,4 +17,9 @@ namespace fastnn {
 
         return 0;
     }
+
+    int Softmax::forward() const
+    {
+        return 0;
+    }
 }

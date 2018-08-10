@@ -56,7 +56,7 @@ float* ModelBinFromStdio::load(int w, int type) const
                 printf("ModelBinFromStdio load float16_weights failed %d\n", nread);
                 return NULL;
             }
-            float* weight16=fastnn_alloc(w);
+            float* weight16=fastnn_alloc(w* sizeof(float));
             for(int i=0;i<w;i++)
             {
                 weight16[i]=half2float(float16_weights[i]);
@@ -64,7 +64,7 @@ float* ModelBinFromStdio::load(int w, int type) const
             return weight16;
         }
 
-        float* data=fastnn_alloc(w);
+        float* data=fastnn_alloc(w* sizeof(float));
         if (data==NULL)
             return NULL;
 
@@ -113,7 +113,7 @@ float* ModelBinFromStdio::load(int w, int type) const
     }
     else if (type == 1)
     {
-        float* data=fastnn_alloc(w);
+        float* data=fastnn_alloc(w* sizeof(float));
         if (data==NULL)
             return NULL;
 

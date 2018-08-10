@@ -41,8 +41,10 @@ public:
     //clone the Net used the same weight but reallocate other computer blob
     Net* clone();
 
-    int organize_net(void);
+    int serialize_net(void);
     //Forward the net
+
+    int find_input_output(void);
 
     //forward compute the whole network
     //return 0 if success
@@ -69,7 +71,7 @@ public:
 
     std::map<std::string,Blob*> input;
     std::map<std::string,Blob*> output;
-    std::map<std::string,Blob> allBlob;
+    std::map<std::string,Blob*> allBlob;
     std::vector<Layer*> allLayer;
 
     std::map<std::string,int> blob2ptr;

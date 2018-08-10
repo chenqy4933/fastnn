@@ -24,7 +24,7 @@ int Layer::load_model(const ModelBin& /*mb*/)
     return 0;
 }
 
-int Layer::forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const
+int Layer::forward() const
 {
     return 0;
 }
@@ -33,16 +33,10 @@ int Layer::forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top
 int Layer::infershape()
 {
     Blob * blob=bottoms[0];
-    int shape[4];
-    if(blob->get_blob_shape(shape))
+
+    int ret=tops[0]->setSize(blob->h,blob->w,blob->c);
+    if(ret!=0)
     {
-        int ret=tops[0]->setSize(shape);
-        if(ret!=0)
-        {
-            printf("inferShape wrong!!\n");
-            return 0;
-        }
-    } else{
         printf("inferShape wrong!!\n");
         return 0;
     }

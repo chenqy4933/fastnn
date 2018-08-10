@@ -12,13 +12,12 @@ class Input : public Layer
 
 public:
     Input();
-    ~Input(){};
 
     virtual int load_param(const ParamDict& pd) override;
 
     virtual int infershape() override;
 
-    int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const override;
+    int forward() const override;
 
 public:
     int w;

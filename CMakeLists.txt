@@ -64,8 +64,8 @@ list(APPEND fastnn_SRCS
         common/paramdict.cpp
         common/modelbin.cpp
         )
-file(GLOB LAYER_SRC layer/*.cpp)
-
+file(GLOB LAYER_SRC layer/*.cpp
+                     nnfunc/*.cpp)
 list(APPEND fastnn_SRCS ${LAYER_SRC})
 
 add_library(fastnn STATIC ${fastnn_SRCS})
@@ -78,7 +78,6 @@ install(FILES
         common/layer.h
         common/modelbin.h
         common/paramdict.h
-
         DESTINATION include
         )
 #add_subdirectory(nnfunc)

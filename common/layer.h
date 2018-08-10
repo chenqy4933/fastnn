@@ -10,7 +10,6 @@
 #include "paramdict.h"
 #include "memoryAlloc.h"
 
-
 namespace fastnn {
 
 class Blob;
@@ -43,7 +42,7 @@ public:
     virtual int infershape();
     // implement inference
     // return 0 if success
-    virtual int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const;
+    virtual int forward() const;
 
 public:
     // layer type name

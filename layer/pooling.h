@@ -12,17 +12,27 @@ namespace fastnn {
 class Pooling: public Layer {
 
 public:
-    ~Pooling(){};
-    Pooling(){};
+    Pooling();
 
-    virtual int load_param(const ParamDict& pd) override{return 0;};
+    virtual int load_param(const ParamDict& pd) override;
 
-    virtual int load_model(const ModelBin& mb) override{return 0;};
+    virtual int infershape() override;
 
-    virtual int infershape() override{return 0;};
+    int forward() const override;
 
-    int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const override{return 0;};
-
+    enum { PoolMethod_MAX = 0, PoolMethod_AVE = 1 };
+public:
+    int pooling_type;
+    int kernel_w;
+    int kernel_h;
+    int stride_w;
+    int stride_h;
+    int pad_left;
+    int pad_right;
+    int pad_top;
+    int pad_bottom;
+    int global_pooling;
+    int pad_mode;// 0=full 1=valid 2=SAME
 
 };
 

@@ -103,7 +103,7 @@ int ParamDict::load_param(FILE* fp)
                 return -1;
             }
 
-            params[id].v=fastnn_alloc(len);
+            params[id].v=fastnn_alloc(len* sizeof(float));
 
             for (int j = 0; j < len; j++)
             {

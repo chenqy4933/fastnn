@@ -11,18 +11,14 @@ namespace fastnn {
 class Dropout :public Layer{
 
 public:
-    ~Dropout(){};
-    Dropout(){};
+    Dropout();
 
-    virtual int load_param(const ParamDict& pd) override{return 0;};
+    virtual int load_param(const ParamDict& pd) override;
 
-    virtual int load_model(const ModelBin& mb) override{return 0;};
+    int forward() const override;
 
-    virtual int infershape() override{};
-
-    int forward(const std::vector<Blob>& bottom_blobs, std::vector<Blob>& top_blobs) const override{return 0;};
-
-
+public:
+    float scale;
 };
 
 Layer *GetDropoutLayer()
