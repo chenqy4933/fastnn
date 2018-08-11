@@ -101,6 +101,141 @@ namespace fastnn {
 
     int Pooling::forward() const
     {
+        Blob* input=bottoms[0];
+        Blob* output=tops[0];
+        if(global_pooling)
+        {
+            float* out_ptr=output->data();
+            float* in_ptr=input->data();
+            int size=input->w*input->h;
+            int channel=input->c;
+            if(pooling_type==PoolMethod_MAX)
+            {
+                for(int c=0;c<channel;c++)
+                {
+                    out_ptr[c]=in_ptr[c];
+                }
+                for(int i=0;i<size;i++)
+                {
+                    float* in=in_ptr+i*input->padc;
+                    for(int c=0;c<channel;c++)
+                    {
+                        out_ptr[c]=std::max(out_ptr[c],in[c]);
+                    }
+                }
+            } else{
+                for(int c=0;c<channel;c++)
+                {
+                    out_ptr[c]=0.0f;
+                }
+                for(int i=0;i<size;i++)
+                {
+                    float* in=in_ptr+i*input->padc;
+                    for(int c=0;c<channel;c++)
+                    {
+                        out_ptr[c]+=in[c];
+                    }
+                }
+                for(int c=0;c<channel;c++)
+                {
+                    out_ptr[c]/=size;
+                }
+
+            }
+            return 0;
+        }
+        else
+        {
+            if(bottoms[0]->set_pad_zero()!=0)
+            {
+                printf("set_pad_zero error!!\n");
+                return -1;
+            }
+
+            int inw=input->w+input->pad_left+input->pad_right;
+            int inh=input->h+input->pad_up+input->pad_down;
+            int inc=input->padc;
+
+            int outw=output->w;
+            int outh=output->h;
+            int outc=output->c;
+
+            int pad_left=output->pad_left;
+            int pad_right=output->pad_right;
+            int pad_up=output->pad_up;
+            int pad_down=output->pad_down;
+
+            int pad_c=output->padc;
+            int pad_w=pad_left+pad_right;
+
+            int kernel_size=kernel_w*kernel_h;
+
+            float* pInput=input->data();
+            float* pOut=output->data()+(pad_up*pad_w+pad_left)*pad_c;
+            if(pooling_type==PoolMethod_MAX)
+            {
+                for(int h=0;h<outh;h++)
+                {
+                    float* in=pInput+h*stride_h*inw*inc;
+                    float* out=pOut+h*(pad_w+outw)*pad_c;
+                    for(int w=0;w<outw;w++)
+                    {
+                        for(int c=0;c<outc;c++)
+                        {
+                            float max=in[c];
+                            for(int kh=0;kh<kernel_h;kh++)
+                            {
+                                float* iner_in=in+kh*inw*inc+c;
+                                for(int kw=0;kw<kernel_w;kw++)
+                                {
+                                    max=std::max(iner_in[kw*inc],max);
+                                }
+                            }
+                            out[c] = max;
+                        }
+                        in+=stride_w*inc;
+                        out+=pad_c;
+                    }
+                }
+            }
+            else
+            {
+                for(int h=0;h<outh;h++)
+                {
+                    float* in=pInput+h*stride_h*inw*inc;
+                    float* out=pOut+h*(pad_w+outw)*pad_c;
+                    for(int w=0;w<outw;w++)
+                    {
+                        for(int c=0;c<outc;c++)
+                        {
+                            float sum=0.0f;
+                            for(int kh=0;kh<kernel_h;kh++)
+                            {
+                                float* iner_in=in+kh*inw*inc+c;
+                                for(int kw=0;kw<kernel_w;kw++)
+                                {
+                                    sum+=iner_in[kw*inc];
+                                }
+                            }
+                            int size_w=kernel_w;
+                            int size_h=kernel_h;
+                            if(w-pad_left<0)
+                                size_w+=(w-pad_left);
+                            if(w+kernel_w+pad_right>inw)
+                                size_w+=(inw-(w+kernel_w+pad_right));
+                            if(h-pad_up<0)
+                                size_h+=(h-pad_up);
+                            if(h+kernel_h+pad_down>inh)
+                                size_h+=(inh-(h+kernel_h+pad_down));
+                            out[c] = sum/(size_w*size_h);
+                        }
+                        in+=stride_w*inc;
+                        out+=pad_c;
+                    }
+                }
+            }
+            return 0;
+        }
         return 0;
     }
 }

@@ -124,15 +124,24 @@ namespace fastnn {
     int Convolution::init()
     {
         gconv=new General_conv();
-        gconv->init(kernel_w,kernel_h,dilation_w,dilation_h,
-                    stride_w,stride_h,bias_term,weight_data,bias_data);
-        return 0;
+        if(gconv!=NULL)
+        {
+            gconv->init(kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, bias_term, weight_data,
+                        bias_data);
+            return 0;
+        }
+        else
+        {
+            return -1;
+        }
     }
 
     int Convolution::forward() const
     {
-        return 0;
+        if(gconv!=NULL)
+        {
+            return gconv->execute(bottoms,tops);
+        }
+        return -1;
     }
-
-
 }

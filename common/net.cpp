@@ -603,7 +603,9 @@ int Net::net_memory_plan()
                             }
                             if(memory_need==false)
                             {
-                                blob2ptr_temp[thisLayer->tops[j]->name]=blob2ptr_temp[thisLayer->bottoms[0]->name];
+                                int index_ptr=blob2ptr_temp[thisLayer->bottoms[0]->name];
+                                blob2ptr_temp[thisLayer->tops[j]->name]=index_ptr;
+                                ptr_size[index_ptr]=std::max(top_blob->size,(size_t)ptr_size[index_ptr]);
                             }
                             else
                             {

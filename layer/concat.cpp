@@ -3,6 +3,7 @@
 //
 
 #include "concat.h"
+#include "nnfunc/general_pad.h"
 
 namespace fastnn {
 
@@ -75,6 +76,36 @@ namespace fastnn {
 
     int Concat::forward() const
     {
-        return 0;
+        int input_num=bottoms.size();
+
+        int pad_width = tops[0]->w + tops[0]->pad_right + tops[0]->pad_left;
+        int pad_height = tops[0]->h + tops[0]->pad_up + tops[0]->pad_down;
+        int pad_channel = tops[0]->padc;
+
+        float * pTop=tops[0]->data()+pad_channel*(pad_width*tops[0]->pad_up+tops[0]->pad_left);
+        if(axis==1)
+        {
+            int height=tops[0]->h;
+            int width=tops[0]->w;
+            for(int num=0;num<input_num;num++)
+            {
+                float* source=bottoms[0]->data();
+                int current_c=bottoms[0]->c;
+                float* dst=pTop+current_c;
+                for (int h = 0; h < height; h++)
+                {
+                    for (int w = 0; w < width; w++)
+                    {
+                        memcpy(dst,source,current_c*sizeof(float));
+                        source+=current_c;
+                        dst+=pad_channel;
+                    }
+                    dst+=(pad_width-tops[0]->w)*pad_channel;
+                }
+            }
+            return 0;
+        }
+        else
+            return -1;
     }
 }

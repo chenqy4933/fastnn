@@ -219,6 +219,24 @@ namespace fastnn {
 
     int Blob::set_pad_zero()
     {
+        int channe_out=c;
+        float * dst=data();
+
+        if (pad_right || pad_left || pad_up || pad_down)
+        {
+            int pad_width = w + pad_right + pad_left;
+            int pad_height = h + pad_up + pad_down;
+            int pad_channel = padc;
+
+            memset(dst, 0.0f, (pad_up * pad_width + pad_left) * pad_channel * sizeof(float));
+            dst += ((pad_up + 1) * pad_width - pad_right) * pad_channel;
+            for (int height = 0; height < h - 1; height++)
+            {
+                memset(dst, 0.0f, (pad_width - w) * pad_channel * sizeof(float));
+                dst += pad_width * pad_channel;
+            }
+            memset(dst, 0.0f, (pad_down * pad_width + pad_right) * pad_channel * sizeof(float));
+        }
         return 0;
     }
 
